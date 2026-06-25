@@ -611,8 +611,6 @@ function Library:CreateWindow(windowname,windowinfo)
         local ColorButtonCorner = Instance.new("UICorner")
         local ColorPickerPanel = Instance.new("Frame")
         local PanelCorner = Instance.new("UICorner")
-        
-        -- PATCHED: Turned into an ImageButton to natively capture dragging inputs
         local ColorCanvas = Instance.new("ImageButton") 
         local PickerCircle = Instance.new("Frame")
         local PickerCircleCorner = Instance.new("UICorner")
@@ -636,21 +634,21 @@ function Library:CreateWindow(windowname,windowinfo)
         ColorPickerPanel.Visible = false
         ColorPickerPanel.ZIndex = 100 
         ColorPickerPanel.BorderSizePixel = 0
-        ColorPickerPanel.Active = true -- PATCHED: Absorbs panel clicks entirely
+        ColorPickerPanel.Active = true 
 
         PanelCorner.CornerRadius = UDim.new(0, 6)
         PanelCorner.Parent = ColorPickerPanel
 
         ColorCanvas.Name = "ColorCanvas"
         ColorCanvas.Parent = ColorPickerPanel
-        ColorCanvas.BackgroundTransparency = 0 
-        ColorCanvas.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        ColorCanvas.BackgroundTransparency = 1.000 -- FIXED: Set to 1 so background colors don't block the asset image
         ColorCanvas.Position = UDim2.new(0, 8, 0, 8)
         ColorCanvas.Size = UDim2.new(1, -16, 1, -16)
-        ColorCanvas.Image = "rbxassetid://4155801252" 
+        ColorCanvas.Image = "rbxassetid://143332548" -- FIXED: Swapped to a verified standalone full-spectrum HSV color map
+        ColorCanvas.ImageColor3 = Color3.fromRGB(255, 255, 255) -- FIXED: Force clean canvas color initialization
         ColorCanvas.ZIndex = 101
-        ColorCanvas.Active = true           -- PATCHED: Blocks window drag signals
-        ColorCanvas.AutoButtonColor = false -- PATCHED: Prevents unwanted dark flashes
+        ColorCanvas.Active = true           
+        ColorCanvas.AutoButtonColor = false 
 
         PickerCircle.Name = "PickerCircle"
         PickerCircle.Parent = ColorCanvas
@@ -695,6 +693,7 @@ function Library:CreateWindow(windowname,windowinfo)
 
             PickerCircle.Position = UDim2.new(pctX, 0, pctY, 0)
             
+            -- Maps perfectly across the colorful X axis (Hue) and Y axis (Saturation mix)
             currentColor = Color3.fromHSV(pctX, 1 - pctY, 1)
             
             ColorButton.BackgroundColor3 = currentColor
