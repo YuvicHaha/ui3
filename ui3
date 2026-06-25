@@ -527,7 +527,8 @@ function Library:CreateWindow(windowname,windowinfo)
     
     local isMobile = UserInputService.TouchEnabled
     local screenButton = nil
-    local mobileDragConn = nil -- Prevented memory leak here
+    local mobileDragConn = nil
+    local closeColorPanel = nil -- Defined up here so FireToggle can access it
 
     ToggleHolder.Name = "ToggleHolder"
     ToggleHolder.Parent = Home
@@ -535,7 +536,7 @@ function Library:CreateWindow(windowname,windowinfo)
     ToggleHolder.BorderSizePixel = 0
     ToggleHolder.Position = UDim2.new(0.0167785231, 0, 0, 0)
     ToggleHolder.Size = UDim2.new(0, 288, 0, 26)
-    ToggleHolder.ClipsDescendants = false -- Allows the color dropdown to pop out downwards
+    ToggleHolder.ClipsDescendants = false
     
     ToggleHolderCorner.CornerRadius = UDim.new(0, 5)
     ToggleHolderCorner.Parent = ToggleHolder
@@ -543,19 +544,19 @@ function Library:CreateWindow(windowname,windowinfo)
     ToggleTitle.Name = "ToggleTitle"
     ToggleTitle.Parent = ToggleHolder
     ToggleTitle.BackgroundTransparency = 1.000
-    ToggleTitle.Position = UDim2.new(0.024, 0, 0, 0)
-    ToggleTitle.Size = UDim2.new(0, 140, 0, 24)
+    ToggleTitle.Position = UDim2.new(0.024, 0, 0, 1) -- Set pixel offset
+    ToggleTitle.Size = UDim2.new(0, 130, 0, 24)
     ToggleTitle.Font = Enum.Font.GothamSemibold
     ToggleTitle.Text = togglename or ""
     ToggleTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
     ToggleTitle.TextSize = 11.000
     ToggleTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Adjusted Bind Button Position to fit the color picker frame nicely
+    -- FIXED POSITIONING: Force absolute pixel height offsets (0 scale, 4px offset) so they never move down
     BindButton.Name = "BindButton"
     BindButton.Parent = ToggleHolder
     BindButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    BindButton.Position = hasColorPicker and UDim2.new(0.50, 0, 0.15, 0) or UDim2.new(0.58, 0, 0.15, 0)
+    BindButton.Position = hasColorPicker and UDim2.new(0.50, 0, 0, 4) or UDim2.new(0.58, 0, 0, 4)
     BindButton.Size = UDim2.new(0, 50, 0, 18)
     BindButton.Font = Enum.Font.GothamSemibold
     
@@ -589,7 +590,7 @@ function Library:CreateWindow(windowname,windowinfo)
     ToggleFrame.Name = "ToggleFrame"
     ToggleFrame.Parent = ToggleButton
     ToggleFrame.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
-    ToggleFrame.Position = UDim2.new(0.27192983, 0, 0.119999997, 0)
+    ToggleFrame.Position = UDim2.new(0.27192983, 0, 0, 3) -- Locked Y offset
     ToggleFrame.Size = UDim2.new(0, 34, 0, 19)
     
     ToggleFrameCorner.Parent = ToggleFrame
@@ -597,7 +598,7 @@ function Library:CreateWindow(windowname,windowinfo)
     ToggleBall.Name = "ToggleBall"
     ToggleBall.Parent = ToggleFrame
     ToggleBall.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    ToggleBall.Position = UDim2.new(0.123, 0, 0.158, 0)
+    ToggleBall.Position = UDim2.new(0.123, 0, 0, 3.5) -- Locked Y offset
     ToggleBall.Size = UDim2.new(0, 14, 0, 12)
     
     ToggleBallCorner.CornerRadius = UDim.new(0, 100)
@@ -615,11 +616,11 @@ function Library:CreateWindow(windowname,windowinfo)
         local PickerCircle = Instance.new("Frame")
         local PickerCircleCorner = Instance.new("UICorner")
 
-        -- Small color box next to the switch
+        -- Locked to 4px from top offset layout
         ColorButton.Name = "ColorButton"
         ColorButton.Parent = ToggleHolder
         ColorButton.BackgroundColor3 = currentColor
-        ColorButton.Position = UDim2.new(0.71, 0, 0.15, 0)
+        ColorButton.Position = UDim2.new(0.71, 0, 0, 4) 
         ColorButton.Size = UDim2.new(0, 18, 0, 18)
         ColorButton.Text = ""
         ColorButton.ZIndex = 5
@@ -627,55 +628,60 @@ function Library:CreateWindow(windowname,windowinfo)
         ColorButtonCorner.CornerRadius = UDim.new(0, 4)
         ColorButtonCorner.Parent = ColorButton
 
-        -- The dropdown canvas background
         ColorPickerPanel.Name = "ColorPickerPanel"
         ColorPickerPanel.Parent = ToggleHolder
         ColorPickerPanel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
         ColorPickerPanel.Position = UDim2.new(0, 4, 0, 30)
         ColorPickerPanel.Size = UDim2.new(0, 280, 0, 110)
         ColorPickerPanel.Visible = false
-        ColorPickerPanel.ZIndex = 10
+        ColorPickerPanel.ZIndex = 100 -- Higher layer priority context
+        ColorPickerPanel.BorderSizePixel = 0
 
         PanelCorner.CornerRadius = UDim.new(0, 6)
         PanelCorner.Parent = ColorPickerPanel
 
-        -- HSV Color Map Image
+        -- FIXED TEXTURE MAP: Robust HSV rainbow square format
         ColorCanvas.Name = "ColorCanvas"
         ColorCanvas.Parent = ColorPickerPanel
-        ColorCanvas.BackgroundTransparency = 1
+        ColorCanvas.BackgroundTransparency = 0 -- Keep solid base
+        ColorCanvas.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         ColorCanvas.Position = UDim2.new(0, 8, 0, 8)
         ColorCanvas.Size = UDim2.new(1, -16, 1, -16)
-        ColorCanvas.Image = "rbxassetid://14203853153" -- Clean 2D Hue/Saturation layout
-        ColorCanvas.ZIndex = 11
+        ColorCanvas.Image = "rbxassetid://4155801252" 
+        ColorCanvas.ZIndex = 101
 
-        -- The selection circle ring
         PickerCircle.Name = "PickerCircle"
         PickerCircle.Parent = ColorCanvas
         PickerCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-        PickerCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        PickerCircle.BackgroundColor3 = currentColor
         PickerCircle.BorderColor3 = Color3.fromRGB(0, 0, 0)
-        PickerCircle.BorderSizePixel = 1.5
-        PickerCircle.Size = UDim2.new(0, 8, 0, 8)
-        PickerCircle.ZIndex = 12
+        PickerCircle.BorderSizePixel = 2
+        PickerCircle.Size = UDim2.new(0, 10, 0, 10)
+        PickerCircle.ZIndex = 102
+        PickerCircle.Position = UDim2.new(0.5, 0, 0.5, 0) 
         
-        -- Default to top center (White range on the texture map)
-        PickerCircle.Position = UDim2.new(0.5, 0, 0, 0) 
         PickerCircleCorner.CornerRadius = UDim.new(1, 0)
         PickerCircleCorner.Parent = PickerCircle
 
-        -- Toggle view panel & seamlessly adjust holder height for layouts
         local isPanelOpen = false
+        
+        -- Centralized close automation loop
+        closeColorPanel = function()
+            isPanelOpen = false
+            ColorPickerPanel.Visible = false
+            ToggleHolder.Size = UDim2.new(0, 288, 0, 26)
+        end
+
         ColorButton.MouseButton1Down:Connect(function()
             isPanelOpen = not isPanelOpen
             ColorPickerPanel.Visible = isPanelOpen
             if isPanelOpen then
                 ToggleHolder.Size = UDim2.new(0, 288, 0, 146)
             else
-                ToggleHolder.Size = UDim2.new(0, 288, 0, 26)
+                closeColorPanel()
             end
         end)
 
-        -- Live Drag Calculation Logic
         local isDraggingColor = false
 
         local function UpdateLiveColor(input)
@@ -688,12 +694,11 @@ function Library:CreateWindow(windowname,windowinfo)
 
             PickerCircle.Position = UDim2.new(pctX, 0, pctY, 0)
             
-            -- Calculates accurate HSV selections live
-            local hue = pctX
-            local sat = pctY -- 0 at top = white, 1 at bottom = max color saturation
-            currentColor = Color3.fromHSV(hue, sat, 1)
+            -- Dynamic live selector updates color values cleanly
+            currentColor = Color3.fromHSV(pctX, 1 - pctY, 1)
             
             ColorButton.BackgroundColor3 = currentColor
+            PickerCircle.BackgroundColor3 = currentColor -- Shows what color you are picking inside the circle selector
             pcall(colorCallback, currentColor)
         end
 
@@ -733,7 +738,12 @@ function Library:CreateWindow(windowname,windowinfo)
     local function FireToggle()
         ToggleEnabled = not ToggleEnabled
         local targetX = ToggleEnabled and 0.455 or 0.123
-        ToggleBall:TweenPosition(UDim2.new(targetX, 0, 0.158, 0), "Out", "Linear", 0.1, true)
+        ToggleBall:TweenPosition(UDim2.new(targetX, 0, 0, 3.5), "Out", "Linear", 0.1, true)
+        
+        -- FIXED: Closes panel dropdown cleanly if the main switch gets turned off
+        if not ToggleEnabled and closeColorPanel then
+            closeColorPanel()
+        end
         
         UpdateScreenButtonVisuals()
         pcall(callback, ToggleEnabled)
