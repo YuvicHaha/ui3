@@ -877,13 +877,6 @@ function Library:CreateWindow(windowname,windowinfo)
     end
 
     FireToggle(true)
-    return {
-        Set = function(val)
-            if ToggleEnabled ~= val then
-                FireToggle(false)
-            end
-        end
-    }
 end
         function PageElements:addSlider(slidername,minvalue,maxvalue,callback)
     local SliderHolder = Instance.new("Frame")
@@ -1079,14 +1072,8 @@ end
                 TextBoxHolder.BackgroundColor3 = Color3.fromRGB(17,17,17)
                 callback(TextBox.Text)
             end)
+            --
         end
-        return {
-        Set = function(val)
-            TextBox.Text = tostring(val)
-            pcall(callback, val)
-        end
-    }
-end
 
         function PageElements:addDropdown(dropdownname,list,scrollsize,callback)
             local DropdownHolder = Instance.new("Frame")
@@ -1272,56 +1259,10 @@ end
                     DropdownOptionContainer:TweenSize(UDim2.new(0, 288,0, 8),"Out","Linear",0.1) -- check
                 end) -- droplist ended
             end
-            return {
-                Set = function(val)
-                    DropdownTitle.Text = tostring(val)
-                    pcall(callback, val)
-                end
-            }
-        end
         end
         --
         return PageElements
     end
     return PageYep
 end
-local HttpService = game:GetService("HttpService")
-local FolderName = "SkidoUI_Configs"
-
-if not isfolder(FolderName) then
-    makefolder(FolderName)
-end
-
--- Make sure to define the global table to store UI elements
-UiElements = {} 
-
-local function SaveConfigFile(configName)
-    if not configName or configName == "" then return end
-    local dataToSave = {}
-    for name, obj in pairs(UiElements) do
-        -- Ensure your UI elements have a GetValue() or similar method
-        dataToSave[name] = obj.GetValue and obj.GetValue() or "Unknown Value"
-    end
-    local success, encoded = pcall(HttpService.JSONEncode, HttpService, dataToSave)
-    if success then
-        writefile(FolderName .. "/" .. configName .. ".json", encoded)
-    end
-end
-
--- Helper: Decodes JSON and feeds it back into your custom UI elements
-local function LoadConfigFile(configName)
-    local path = FolderName .. "/" .. configName .. ".json"
-    if not isfile(path) then return end
-    local content = readfile(path)
-    local success, decodedData = pcall(HttpService.JSONDecode, HttpService, content)
-    if success and decodedData then
-        for elementName, savedValue in pairs(decodedData) do
-            if UiElements[elementName] then
-                UiElements[elementName].Set(savedValue)
-            end
-        end
-    end
-end
 return Library
-
-
