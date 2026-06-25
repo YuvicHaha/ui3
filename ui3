@@ -528,7 +528,7 @@ function Library:CreateWindow(windowname,windowinfo)
     local isMobile = UserInputService.TouchEnabled
     local screenButton = nil
     local mobileDragConn = nil
-    local closeColorPanel = nil -- Defined up here so FireToggle can access it
+    local closeColorPanel = nil
 
     ToggleHolder.Name = "ToggleHolder"
     ToggleHolder.Parent = Home
@@ -544,7 +544,7 @@ function Library:CreateWindow(windowname,windowinfo)
     ToggleTitle.Name = "ToggleTitle"
     ToggleTitle.Parent = ToggleHolder
     ToggleTitle.BackgroundTransparency = 1.000
-    ToggleTitle.Position = UDim2.new(0.024, 0, 0, 1) -- Set pixel offset
+    ToggleTitle.Position = UDim2.new(0.024, 0, 0, 1)
     ToggleTitle.Size = UDim2.new(0, 130, 0, 24)
     ToggleTitle.Font = Enum.Font.GothamSemibold
     ToggleTitle.Text = togglename or ""
@@ -552,7 +552,6 @@ function Library:CreateWindow(windowname,windowinfo)
     ToggleTitle.TextSize = 11.000
     ToggleTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- FIXED POSITIONING: Force absolute pixel height offsets (0 scale, 4px offset) so they never move down
     BindButton.Name = "BindButton"
     BindButton.Parent = ToggleHolder
     BindButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
@@ -590,7 +589,7 @@ function Library:CreateWindow(windowname,windowinfo)
     ToggleFrame.Name = "ToggleFrame"
     ToggleFrame.Parent = ToggleButton
     ToggleFrame.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
-    ToggleFrame.Position = UDim2.new(0.27192983, 0, 0, 3) -- Locked Y offset
+    ToggleFrame.Position = UDim2.new(0.27192983, 0, 0, 3)
     ToggleFrame.Size = UDim2.new(0, 34, 0, 19)
     
     ToggleFrameCorner.Parent = ToggleFrame
@@ -598,7 +597,7 @@ function Library:CreateWindow(windowname,windowinfo)
     ToggleBall.Name = "ToggleBall"
     ToggleBall.Parent = ToggleFrame
     ToggleBall.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    ToggleBall.Position = UDim2.new(0.123, 0, 0, 3.5) -- Locked Y offset
+    ToggleBall.Position = UDim2.new(0.123, 0, 0, 3.5)
     ToggleBall.Size = UDim2.new(0, 14, 0, 12)
     
     ToggleBallCorner.CornerRadius = UDim.new(0, 100)
@@ -612,11 +611,12 @@ function Library:CreateWindow(windowname,windowinfo)
         local ColorButtonCorner = Instance.new("UICorner")
         local ColorPickerPanel = Instance.new("Frame")
         local PanelCorner = Instance.new("UICorner")
-        local ColorCanvas = Instance.new("ImageLabel")
+        
+        -- PATCHED: Turned into an ImageButton to natively capture dragging inputs
+        local ColorCanvas = Instance.new("ImageButton") 
         local PickerCircle = Instance.new("Frame")
         local PickerCircleCorner = Instance.new("UICorner")
 
-        -- Locked to 4px from top offset layout
         ColorButton.Name = "ColorButton"
         ColorButton.Parent = ToggleHolder
         ColorButton.BackgroundColor3 = currentColor
@@ -634,21 +634,23 @@ function Library:CreateWindow(windowname,windowinfo)
         ColorPickerPanel.Position = UDim2.new(0, 4, 0, 30)
         ColorPickerPanel.Size = UDim2.new(0, 280, 0, 110)
         ColorPickerPanel.Visible = false
-        ColorPickerPanel.ZIndex = 100 -- Higher layer priority context
+        ColorPickerPanel.ZIndex = 100 
         ColorPickerPanel.BorderSizePixel = 0
+        ColorPickerPanel.Active = true -- PATCHED: Absorbs panel clicks entirely
 
         PanelCorner.CornerRadius = UDim.new(0, 6)
         PanelCorner.Parent = ColorPickerPanel
 
-        -- FIXED TEXTURE MAP: Robust HSV rainbow square format
         ColorCanvas.Name = "ColorCanvas"
         ColorCanvas.Parent = ColorPickerPanel
-        ColorCanvas.BackgroundTransparency = 0 -- Keep solid base
+        ColorCanvas.BackgroundTransparency = 0 
         ColorCanvas.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         ColorCanvas.Position = UDim2.new(0, 8, 0, 8)
         ColorCanvas.Size = UDim2.new(1, -16, 1, -16)
         ColorCanvas.Image = "rbxassetid://4155801252" 
         ColorCanvas.ZIndex = 101
+        ColorCanvas.Active = true           -- PATCHED: Blocks window drag signals
+        ColorCanvas.AutoButtonColor = false -- PATCHED: Prevents unwanted dark flashes
 
         PickerCircle.Name = "PickerCircle"
         PickerCircle.Parent = ColorCanvas
@@ -665,7 +667,6 @@ function Library:CreateWindow(windowname,windowinfo)
 
         local isPanelOpen = false
         
-        -- Centralized close automation loop
         closeColorPanel = function()
             isPanelOpen = false
             ColorPickerPanel.Visible = false
@@ -694,11 +695,10 @@ function Library:CreateWindow(windowname,windowinfo)
 
             PickerCircle.Position = UDim2.new(pctX, 0, pctY, 0)
             
-            -- Dynamic live selector updates color values cleanly
             currentColor = Color3.fromHSV(pctX, 1 - pctY, 1)
             
             ColorButton.BackgroundColor3 = currentColor
-            PickerCircle.BackgroundColor3 = currentColor -- Shows what color you are picking inside the circle selector
+            PickerCircle.BackgroundColor3 = currentColor 
             pcall(colorCallback, currentColor)
         end
 
@@ -740,7 +740,6 @@ function Library:CreateWindow(windowname,windowinfo)
         local targetX = ToggleEnabled and 0.455 or 0.123
         ToggleBall:TweenPosition(UDim2.new(targetX, 0, 0, 3.5), "Out", "Linear", 0.1, true)
         
-        -- FIXED: Closes panel dropdown cleanly if the main switch gets turned off
         if not ToggleEnabled and closeColorPanel then
             closeColorPanel()
         end
