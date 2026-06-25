@@ -500,10 +500,12 @@ function Library:CreateWindow(windowname,windowinfo)
     -- SMART ARGUMENT PARSER (Handles Keybinds & Defaults Automatically)
     -- ========================================================
     local keybind, defaultState, callback, hasColorPicker, defaultColor, colorCallback
+    local hasKeybind = false -- FIX: Tracks if a keybind slot was explicitly requested
 
     if typeof(arg2) == "EnumItem" then
         -- Syntax style: Main:addToggle("Name", Enum.KeyCode.V, callback, defaultState)
         keybind = arg2
+        hasKeybind = true
         callback = arg3 or function() end
         if typeof(arg4) == "boolean" then
             defaultState = arg4
@@ -535,10 +537,6 @@ function Library:CreateWindow(windowname,windowinfo)
         end
     end
 
-    if keybind == Enum.KeyCode.Unknown then
-        keybind = nil
-    end
-
     -- Color Picker Defaults
     hasColorPicker = hasColorPicker or false
     defaultColor = defaultColor or Color3.fromRGB(255, 255, 255)
@@ -548,7 +546,8 @@ function Library:CreateWindow(windowname,windowinfo)
     -- Initialize state
     local ToggleEnabled = defaultState
     local isListening = false
-    local currentBind = keybind 
+    -- FIX: If it's Unknown, set currentBind to nil so it textually renders as "None"
+    local currentBind = (keybind ~= Enum.KeyCode.Unknown) and keybind or nil 
     local UserInputService = game:GetService("UserInputService")
     
     local isMobile = UserInputService.TouchEnabled
@@ -578,7 +577,6 @@ function Library:CreateWindow(windowname,windowinfo)
     ToggleTitle.TextSize = 11.000
     ToggleTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- FIX: Pinned with exact 4px Y offset so it never drifts down when the drawer opens
     BindButton.Name = "BindButton"
     BindButton.Parent = ToggleHolder
     BindButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
@@ -596,12 +594,14 @@ function Library:CreateWindow(windowname,windowinfo)
         end
         shared.SkidoMobileOffsetCount = shared.SkidoMobileOffsetCount or 0
     else
+        -- FIX: Correctly displays "None" if currentBind is nil
         BindButton.Text = currentBind and currentBind.Name or "None"
     end
     
     BindButton.TextColor3 = Color3.fromRGB(150, 150, 150)
     BindButton.TextSize = 10.000
-    BindButton.Visible = (keybind ~= nil or isMobile)
+    -- FIX: Uses hasKeybind flag so that Unknown keybind slots stay visible
+    BindButton.Visible = (hasKeybind or isMobile)
     
     BindButtonCorner.CornerRadius = UDim.new(0, 4)
     BindButtonCorner.Parent = BindButton
@@ -624,7 +624,6 @@ function Library:CreateWindow(windowname,windowinfo)
     ToggleBall.Name = "ToggleBall"
     ToggleBall.Parent = ToggleFrame
     ToggleBall.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    -- Instantly sets the switch ball position based on the default value parsed
     ToggleBall.Position = ToggleEnabled and UDim2.new(0.455, 0, 0, 3.5) or UDim2.new(0.123, 0, 0, 3.5)
     ToggleBall.Size = UDim2.new(0, 14, 0, 12)
     
@@ -643,7 +642,6 @@ function Library:CreateWindow(windowname,windowinfo)
         local PickerCircle = Instance.new("Frame")
         local PickerCircleCorner = Instance.new("UICorner")
 
-        -- FIX: Pinned with exact 4px Y offset to stay aligned with the toggle switch row
         ColorButton.Name = "ColorButton"
         ColorButton.Parent = ToggleHolder
         ColorButton.BackgroundColor3 = currentColor
@@ -663,7 +661,7 @@ function Library:CreateWindow(windowname,windowinfo)
         ColorPickerPanel.Visible = false
         ColorPickerPanel.ZIndex = 100 
         ColorPickerPanel.BorderSizePixel = 0
-        ColorPickerPanel.Active = true -- FIX: Sinks input so it doesn't drag the main frame
+        ColorPickerPanel.Active = true 
 
         PanelCorner.CornerRadius = UDim.new(0, 6)
         PanelCorner.Parent = ColorPickerPanel
@@ -673,10 +671,10 @@ function Library:CreateWindow(windowname,windowinfo)
         ColorCanvas.BackgroundTransparency = 1.000 
         ColorCanvas.Position = UDim2.new(0, 8, 0, 8)
         ColorCanvas.Size = UDim2.new(1, -16, 1, -16)
-        ColorCanvas.Image = "rbxassetid://143332548" -- FIX: Clean pre-baked standalone 2D HSV color pad
+        ColorCanvas.Image = "rbxassetid://143332548" 
         ColorCanvas.ImageColor3 = Color3.fromRGB(255, 255, 255) 
         ColorCanvas.ZIndex = 101
-        ColorCanvas.Active = true           -- FIX: Intercepts mouse down events to stop background drag triggers
+        ColorCanvas.Active = true           
         ColorCanvas.AutoButtonColor = false 
 
         PickerCircle.Name = "PickerCircle"
@@ -763,7 +761,6 @@ function Library:CreateWindow(windowname,windowinfo)
     end
 
     local function FireToggle(skipCallback)
-        -- Normal click toggles state, initial runs bypass it
         if not skipCallback then
             ToggleEnabled = not ToggleEnabled
         end
@@ -771,7 +768,6 @@ function Library:CreateWindow(windowname,windowinfo)
         local targetX = ToggleEnabled and 0.455 or 0.123
         ToggleBall:TweenPosition(UDim2.new(targetX, 0, 0, 3.5), "Out", "Linear", 0.1, true)
         
-        -- FIX: Instantly hides color drawer when toggle gets switched off
         if not ToggleEnabled and closeColorPanel then
             closeColorPanel()
         end
@@ -880,7 +876,6 @@ function Library:CreateWindow(windowname,windowinfo)
         end)
     end
 
-    -- INITIAL FIRE: Fires state immediately upon creation to sync logic with the default configuration setting
     FireToggle(true)
 end
         function PageElements:addSlider(slidername,minvalue,maxvalue,callback)
