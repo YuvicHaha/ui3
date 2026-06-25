@@ -1285,4 +1285,84 @@ end
     end
     return PageYep
 end
+local HttpService = game:GetService("HttpService")
+local FolderName = "SkidoUI_Configs"
+
+-- Ensure the root directory exists on your exploit environment
+if not isfolder(FolderName) then
+    makefolder(FolderName)
+end
+
+-- This table holds the runtime controller objects returned by your UI elements
+local UiElements = {}
+
+-- Track current state variables centrally to compile files cleanly
+local ConfigState = {
+    SelectedConfig = "",
+    AutoloadEnabled = false
+}
+
+-- Helper: Scans your directory and extracts clean config file names
+local function GetConfigList()
+    local cleanList = {}
+    if isfolder(FolderName) then
+        for _, filePath in ipairs(listfiles(FolderName)) do
+            -- Strip folder path and extension to leave just the config name
+            local name = filePath:match("([^/]+)%.json$") or filePath:match("([^\\]+)%.json$")
+            if name then
+                table.insert(cleanList, name)
+            end
+        end
+    end
+    return cleanList
+end
+
+-- Helper: Converts live data states into plain JSON-friendly arrays/strings
+-- Helper: Converts live data states into plain JSON-friendly arrays/strings
+local function SaveConfigFile(configName)
+    if not configName or configName == "" then return end
+    
+    local dataToSave = {}
+    
+    -- AUTOMATED: This loop captures whatever is currently in your UiElements table
+    -- As long as you register your toggles/textboxes to this table, it will save them!
+    for name, obj in pairs(UiElements) do
+        -- This is a generic way to save. You might need to add specific 
+        -- logic here if you have complex data types like Color3.
+        dataToSave[name] = obj.GetValue and obj.GetValue() or "Unknown Value"
+    end
+
+    local success, encoded = pcall(HttpService.JSONEncode, HttpService, dataToSave)
+    if success then
+        writefile(FolderName .. "/" .. configName .. ".json", encoded)
+        if typeof(Notify) == "function" then Notify("Saved configuration: " .. configName, 2) end
+    end
+end
+
+-- Helper: Decodes JSON and feeds it back into your custom UI elements
+local function LoadConfigFile(configName)
+    local path = FolderName .. "/" .. configName .. ".json"
+    if not isfile(path) then return end
+    
+    local content = readfile(path)
+    local success, decodedData = pcall(HttpService.JSONDecode, HttpService, content)
+    
+    if success and decodedData then
+        for elementName, savedValue in pairs(decodedData) do
+            if UiElements[elementName] then
+                -- Check if data is a serialized color block
+                if type(savedValue) == "table" and #savedValue == 3 then
+                    local color = Color3.new(savedValue[1], savedValue[2], savedValue[3])
+                    UiElements[elementName].Set(color)
+                else
+                    -- Normal boolean or numeric values
+                    UiElements[elementName].Set(savedValue)
+                end
+            end
+        end
+        if typeof(Notify) == "function" then Notify("Loaded configuration: " .. configName, 2) end
+    end
+end
 return Library
+
+
