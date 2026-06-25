@@ -482,7 +482,7 @@ function Library:CreateWindow(windowname,windowinfo)
             
         end
 
-        function PageElements:addToggle(togglename, arg2, arg3, hasColorPicker, defaultColor, colorCallback)
+        function PageElements:addToggle(togglename, arg2, arg3, arg4, arg5, arg6, arg7)
     local ToggleHolder = Instance.new("Frame")
     local ToggleHolderCorner = Instance.new("UICorner")
     local ToggleTitle = Instance.new("TextLabel")
@@ -496,17 +496,42 @@ function Library:CreateWindow(windowname,windowinfo)
     local BindButton = Instance.new("TextButton") 
     local BindButtonCorner = Instance.new("UICorner")
 
-    -- FIXED ARGUMENT HANDLING
-    local keybind, callback
+    -- ========================================================
+    -- SMART ARGUMENT PARSER (Handles Keybinds & Defaults Automatically)
+    -- ========================================================
+    local keybind, defaultState, callback, hasColorPicker, defaultColor, colorCallback
+
     if typeof(arg2) == "EnumItem" then
+        -- Syntax style: Main:addToggle("Name", Enum.KeyCode.V, callback, defaultState)
         keybind = arg2
         callback = arg3 or function() end
+        if typeof(arg4) == "boolean" then
+            defaultState = arg4
+            hasColorPicker = arg5 or false
+            defaultColor = arg6
+            colorCallback = arg7
+        else
+            defaultState = false
+            hasColorPicker = arg4 or false
+            defaultColor = arg5
+            colorCallback = arg6
+        end
     else
         keybind = nil
         if typeof(arg2) == "boolean" then
+            -- Syntax style: Visual:addToggle("Name", defaultState, callback, hasPicker, ...)
+            defaultState = arg2
             callback = arg3 or function() end
+            hasColorPicker = arg4 or false
+            defaultColor = arg5
+            colorCallback = arg6
         else
+            -- Syntax style: Main:addToggle("Name", callback, hasPicker, ...)
+            defaultState = false
             callback = arg2 or function() end
+            hasColorPicker = arg3 or false
+            defaultColor = arg4
+            colorCallback = arg5
         end
     end
 
@@ -520,7 +545,8 @@ function Library:CreateWindow(windowname,windowinfo)
     colorCallback = colorCallback or function() end
     local currentColor = defaultColor
 
-    local ToggleEnabled = false
+    -- Initialize state
+    local ToggleEnabled = defaultState
     local isListening = false
     local currentBind = keybind 
     local UserInputService = game:GetService("UserInputService")
@@ -531,7 +557,7 @@ function Library:CreateWindow(windowname,windowinfo)
     local closeColorPanel = nil
 
     ToggleHolder.Name = "ToggleHolder"
-    ToggleHolder.Parent = Home
+    ToggleHolder.Parent = Home -- Ensure 'Home' is defined higher up in your main library script!
     ToggleHolder.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
     ToggleHolder.BorderSizePixel = 0
     ToggleHolder.Position = UDim2.new(0.0167785231, 0, 0, 0)
@@ -552,6 +578,7 @@ function Library:CreateWindow(windowname,windowinfo)
     ToggleTitle.TextSize = 11.000
     ToggleTitle.TextXAlignment = Enum.TextXAlignment.Left
 
+    -- FIX: Pinned with exact 4px Y offset so it never drifts down when the drawer opens
     BindButton.Name = "BindButton"
     BindButton.Parent = ToggleHolder
     BindButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
@@ -574,7 +601,7 @@ function Library:CreateWindow(windowname,windowinfo)
     
     BindButton.TextColor3 = Color3.fromRGB(150, 150, 150)
     BindButton.TextSize = 10.000
-    BindButton.Visible = (arg2 ~= false)
+    BindButton.Visible = (keybind ~= nil or isMobile)
     
     BindButtonCorner.CornerRadius = UDim.new(0, 4)
     BindButtonCorner.Parent = BindButton
@@ -597,7 +624,8 @@ function Library:CreateWindow(windowname,windowinfo)
     ToggleBall.Name = "ToggleBall"
     ToggleBall.Parent = ToggleFrame
     ToggleBall.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    ToggleBall.Position = UDim2.new(0.123, 0, 0, 3.5)
+    -- Instantly sets the switch ball position based on the default value parsed
+    ToggleBall.Position = ToggleEnabled and UDim2.new(0.455, 0, 0, 3.5) or UDim2.new(0.123, 0, 0, 3.5)
     ToggleBall.Size = UDim2.new(0, 14, 0, 12)
     
     ToggleBallCorner.CornerRadius = UDim.new(0, 100)
@@ -615,6 +643,7 @@ function Library:CreateWindow(windowname,windowinfo)
         local PickerCircle = Instance.new("Frame")
         local PickerCircleCorner = Instance.new("UICorner")
 
+        -- FIX: Pinned with exact 4px Y offset to stay aligned with the toggle switch row
         ColorButton.Name = "ColorButton"
         ColorButton.Parent = ToggleHolder
         ColorButton.BackgroundColor3 = currentColor
@@ -634,20 +663,20 @@ function Library:CreateWindow(windowname,windowinfo)
         ColorPickerPanel.Visible = false
         ColorPickerPanel.ZIndex = 100 
         ColorPickerPanel.BorderSizePixel = 0
-        ColorPickerPanel.Active = true 
+        ColorPickerPanel.Active = true -- FIX: Sinks input so it doesn't drag the main frame
 
         PanelCorner.CornerRadius = UDim.new(0, 6)
         PanelCorner.Parent = ColorPickerPanel
 
         ColorCanvas.Name = "ColorCanvas"
         ColorCanvas.Parent = ColorPickerPanel
-        ColorCanvas.BackgroundTransparency = 1.000 -- FIXED: Set to 1 so background colors don't block the asset image
+        ColorCanvas.BackgroundTransparency = 1.000 
         ColorCanvas.Position = UDim2.new(0, 8, 0, 8)
         ColorCanvas.Size = UDim2.new(1, -16, 1, -16)
-        ColorCanvas.Image = "rbxassetid://143332548" -- FIXED: Swapped to a verified standalone full-spectrum HSV color map
-        ColorCanvas.ImageColor3 = Color3.fromRGB(255, 255, 255) -- FIXED: Force clean canvas color initialization
+        ColorCanvas.Image = "rbxassetid://143332548" -- FIX: Clean pre-baked standalone 2D HSV color pad
+        ColorCanvas.ImageColor3 = Color3.fromRGB(255, 255, 255) 
         ColorCanvas.ZIndex = 101
-        ColorCanvas.Active = true           
+        ColorCanvas.Active = true           -- FIX: Intercepts mouse down events to stop background drag triggers
         ColorCanvas.AutoButtonColor = false 
 
         PickerCircle.Name = "PickerCircle"
@@ -693,7 +722,6 @@ function Library:CreateWindow(windowname,windowinfo)
 
             PickerCircle.Position = UDim2.new(pctX, 0, pctY, 0)
             
-            -- Maps perfectly across the colorful X axis (Hue) and Y axis (Saturation mix)
             currentColor = Color3.fromHSV(pctX, 1 - pctY, 1)
             
             ColorButton.BackgroundColor3 = currentColor
@@ -734,11 +762,16 @@ function Library:CreateWindow(windowname,windowinfo)
         end
     end
 
-    local function FireToggle()
-        ToggleEnabled = not ToggleEnabled
+    local function FireToggle(skipCallback)
+        -- Normal click toggles state, initial runs bypass it
+        if not skipCallback then
+            ToggleEnabled = not ToggleEnabled
+        end
+        
         local targetX = ToggleEnabled and 0.455 or 0.123
         ToggleBall:TweenPosition(UDim2.new(targetX, 0, 0, 3.5), "Out", "Linear", 0.1, true)
         
+        -- FIX: Instantly hides color drawer when toggle gets switched off
         if not ToggleEnabled and closeColorPanel then
             closeColorPanel()
         end
@@ -747,7 +780,7 @@ function Library:CreateWindow(windowname,windowinfo)
         pcall(callback, ToggleEnabled)
     end
 
-    ToggleButton.MouseButton1Down:Connect(FireToggle)
+    ToggleButton.MouseButton1Down:Connect(function() FireToggle(false) end)
 
     if isMobile then
         BindButton.MouseButton1Down:Connect(function()
@@ -781,7 +814,7 @@ function Library:CreateWindow(windowname,windowinfo)
                 screenCorner.Parent = screenButton
                 
                 UpdateScreenButtonVisuals()
-                screenButton.MouseButton1Down:Connect(FireToggle)
+                screenButton.MouseButton1Down:Connect(function() FireToggle(false) end)
                 
                 local dragging = false
                 local dragInput, dragStart, startPos
@@ -841,11 +874,14 @@ function Library:CreateWindow(windowname,windowinfo)
                 end
             else
                 if not gameProcessedEvent and currentBind and input.KeyCode == currentBind and BindButton.Visible then
-                    FireToggle()
+                    FireToggle(false)
                 end
             end
         end)
     end
+
+    -- INITIAL FIRE: Fires state immediately upon creation to sync logic with the default configuration setting
+    FireToggle(true)
 end
         function PageElements:addSlider(slidername,minvalue,maxvalue,callback)
     local SliderHolder = Instance.new("Frame")
