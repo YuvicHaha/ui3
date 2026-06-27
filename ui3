@@ -868,9 +868,13 @@ function Library:CreateWindow(windowname,windowinfo)
             if isListening then
                 -- LISTENING MODE: Determine what type of input was just pressed
                 local isKeyboard = (input.UserInputType == Enum.UserInputType.Keyboard)
+                
+                -- UPDATED: Now checks for MB1, MB2, MB3, MB4, and MB5!
                 local isMouse = (input.UserInputType == Enum.UserInputType.MouseButton1 or 
                                  input.UserInputType == Enum.UserInputType.MouseButton2 or 
-                                 input.UserInputType == Enum.UserInputType.MouseButton3)
+                                 input.UserInputType == Enum.UserInputType.MouseButton3 or
+                                 input.UserInputType == Enum.UserInputType.MouseButton4 or
+                                 input.UserInputType == Enum.UserInputType.MouseButton5)
 
                 if isKeyboard or isMouse then
                     if (isKeyboard and (input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.Backspace)) then
@@ -882,7 +886,7 @@ function Library:CreateWindow(windowname,windowinfo)
                             BindButton.Text = currentBind.Name
                         else
                             currentBind = input.UserInputType
-                            -- Shorten names for UI: MouseButton1 -> MB1
+                            -- Shorten names for UI: MouseButton4 -> MB4
                             BindButton.Text = string.gsub(currentBind.Name, "MouseButton", "MB")
                         end
                     end
