@@ -859,20 +859,23 @@ function Library:CreateWindow(windowname,windowinfo)
             BindButton.Text = "..."
             BindButton.TextColor3 = Color3.fromRGB(255, 255, 255)
             
-            -- FIX: Wait a fraction of a second so the initial left-click isn't caught by the listener
             task.wait(0.1) 
             isListening = true
         end)
 
         UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
             if isListening then
-                -- LISTENING MODE: Determine what type of input was just pressed
+                -- Lookup table for allowed mouse button values
+                local allowedMouseInputs = {
+                    [Enum.UserInputType.MouseButton1] = true,
+                    [Enum.UserInputType.MouseButton2] = true,
+                    [Enum.UserInputType.MouseButton3] = true,
+                    [Enum.UserInputType.MouseButton4] = true,
+                    [Enum.UserInputType.MouseButton5] = true
+                }
+
                 local isKeyboard = (input.UserInputType == Enum.UserInputType.Keyboard)
-                local isMouse = (input.UserInputType == Enum.UserInputType.MouseButton1 or 
-                                 input.UserInputType == Enum.UserInputType.MouseButton2 or 
-                                 input.UserInputType == Enum.UserInputType.MouseButton3 or
-                                 input.UserInputType == Enum.UserInputType.MouseButton4 or
-                                 input.UserInputType == Enum.UserInputType.MouseButton5)
+                local isMouse = allowedMouseInputs[input.UserInputType] or false
 
                 if isKeyboard or isMouse then
                     if (isKeyboard and (input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.Backspace)) then
@@ -884,7 +887,6 @@ function Library:CreateWindow(windowname,windowinfo)
                             BindButton.Text = currentBind.Name
                         else
                             currentBind = input.UserInputType
-                            -- Shorten names for UI: MouseButton4 -> MB4, MouseButton5 -> MB5
                             BindButton.Text = string.gsub(currentBind.Name, "MouseButton", "MB")
                         end
                     end
@@ -892,14 +894,14 @@ function Library:CreateWindow(windowname,windowinfo)
                     isListening = false
                 end
             else
-                -- ACTIVE MODE: Check if the input matches our saved currentBind
-                if not gameProcessedEvent and currentBind and BindButton.Visible then
+                -- ACTIVE MODE: Firing the toggle when the active bind is matched
+                if currentBind and BindButton.Visible then
                     local isMatch = false
                     
-                    -- Check for Keyboard Match
+                    -- Check Keyboard Binds
                     if typeof(currentBind) == "EnumItem" and currentBind.EnumType == Enum.KeyCode then
                         if input.KeyCode == currentBind then isMatch = true end
-                    -- Check for Mouse Match
+                    -- Check Mouse Binds
                     elseif typeof(currentBind) == "EnumItem" and currentBind.EnumType == Enum.UserInputType then
                         if input.UserInputType == currentBind then isMatch = true end
                     end
