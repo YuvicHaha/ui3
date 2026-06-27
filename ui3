@@ -503,8 +503,6 @@ function Library:CreateWindow(windowname,windowinfo)
     local hasKeybind = false -- Tracks if a keybind slot was explicitly requested
 
     if typeof(arg2) == "EnumItem" then
-        -- Syntax style: Main:addToggle("Name", Enum.KeyCode.V, callback, defaultState)
-        -- OR Main:addToggle("Name", Enum.UserInputType.MouseButton2, callback, defaultState)
         keybind = arg2
         hasKeybind = true
         callback = arg3 or function() end
@@ -522,14 +520,12 @@ function Library:CreateWindow(windowname,windowinfo)
     else
         keybind = nil
         if typeof(arg2) == "boolean" then
-            -- Syntax style: Visual:addToggle("Name", defaultState, callback, hasPicker, ...)
             defaultState = arg2
             callback = arg3 or function() end
             hasColorPicker = arg4 or false
             defaultColor = arg5
             colorCallback = arg6
         else
-            -- Syntax style: Main:addToggle("Name", callback, hasPicker, ...)
             defaultState = false
             callback = arg2 or function() end
             hasColorPicker = arg3 or false
@@ -547,9 +543,11 @@ function Library:CreateWindow(windowname,windowinfo)
     -- Initialize state
     local ToggleEnabled = defaultState
     local isListening = false
-    -- FIX: If it's Unknown, set currentBind to nil so it textually renders as "None"
     local currentBind = (keybind ~= Enum.KeyCode.Unknown) and keybind or nil 
     local UserInputService = game:GetService("UserInputService")
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+    local Mouse = LocalPlayer:GetMouse() -- Required to capture MB4/MB5 cleanly
     
     local isMobile = UserInputService.TouchEnabled
     local screenButton = nil
@@ -557,7 +555,7 @@ function Library:CreateWindow(windowname,windowinfo)
     local closeColorPanel = nil
 
     ToggleHolder.Name = "ToggleHolder"
-    ToggleHolder.Parent = Home -- Ensure 'Home' is defined higher up in your main library script!
+    ToggleHolder.Parent = Home 
     ToggleHolder.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
     ToggleHolder.BorderSizePixel = 0
     ToggleHolder.Position = UDim2.new(0.0167785231, 0, 0, 0)
@@ -595,9 +593,10 @@ function Library:CreateWindow(windowname,windowinfo)
         end
         shared.SkidoMobileOffsetCount = shared.SkidoMobileOffsetCount or 0
     else
-        -- Initializing the Keybind Text (Handles Mouse vs Keyboard formatting)
         if currentBind then
-            if currentBind.EnumType == Enum.UserInputType then
+            if typeof(currentBind) == "string" then
+                BindButton.Text = currentBind
+            elseif currentBind.EnumType == Enum.UserInputType then
                 BindButton.Text = string.gsub(currentBind.Name, "MouseButton", "MB")
             else
                 BindButton.Text = currentBind.Name
@@ -858,23 +857,29 @@ function Library:CreateWindow(windowname,windowinfo)
         BindButton.MouseButton1Down:Connect(function()
             BindButton.Text = "..."
             BindButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            
-            -- FIX: Wait a fraction of a second so the initial left-click isn't caught by the listener
             task.wait(0.1) 
             isListening = true
         end)
 
+        -- COMBINED MOUSE HOOKS FOR EXTRA BUTTON DETECTION (MB4/MB5 Listening Mode)
+        local function assignMouseBind(bindName)
+            if isListening then
+                currentBind = bindName
+                BindButton.Text = bindName
+                BindButton.TextColor3 = Color3.fromRGB(150, 150, 150)
+                isListening = false
+            end
+        end
+
+        Mouse.Button4Down:Connect(function() assignMouseBind("MB4") end)
+        Mouse.Button5Down:Connect(function() assignMouseBind("MB5") end)
+
         UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
             if isListening then
-                -- LISTENING MODE: Determine what type of input was just pressed
                 local isKeyboard = (input.UserInputType == Enum.UserInputType.Keyboard)
-                
-                -- UPDATED: Now checks for MB1, MB2, MB3, MB4, and MB5!
                 local isMouse = (input.UserInputType == Enum.UserInputType.MouseButton1 or 
                                  input.UserInputType == Enum.UserInputType.MouseButton2 or 
-                                 input.UserInputType == Enum.UserInputType.MouseButton3 or
-                                 input.UserInputType == Enum.UserInputType.MouseButton4 or
-                                 input.UserInputType == Enum.UserInputType.MouseButton5)
+                                 input.UserInputType == Enum.UserInputType.MouseButton3)
 
                 if isKeyboard or isMouse then
                     if (isKeyboard and (input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.Backspace)) then
@@ -886,7 +891,6 @@ function Library:CreateWindow(windowname,windowinfo)
                             BindButton.Text = currentBind.Name
                         else
                             currentBind = input.UserInputType
-                            -- Shorten names for UI: MouseButton4 -> MB4
                             BindButton.Text = string.gsub(currentBind.Name, "MouseButton", "MB")
                         end
                     end
@@ -894,16 +898,16 @@ function Library:CreateWindow(windowname,windowinfo)
                     isListening = false
                 end
             else
-                -- ACTIVE MODE: Check if the input matches our saved currentBind
+                -- ACTIVE MODE Verification (Triggers the execution when hotkeys match)
                 if not gameProcessedEvent and currentBind and BindButton.Visible then
                     local isMatch = false
                     
-                    -- Check for Keyboard Match
-                    if typeof(currentBind) == "EnumItem" and currentBind.EnumType == Enum.KeyCode then
-                        if input.KeyCode == currentBind then isMatch = true end
-                    -- Check for Mouse Match
-                    elseif typeof(currentBind) == "EnumItem" and currentBind.EnumType == Enum.UserInputType then
-                        if input.UserInputType == currentBind then isMatch = true end
+                    if typeof(currentBind) == "EnumItem" then
+                        if currentBind.EnumType == Enum.KeyCode and input.KeyCode == currentBind then 
+                            isMatch = true 
+                        elseif currentBind.EnumType == Enum.UserInputType and input.UserInputType == currentBind then 
+                            isMatch = true 
+                        end
                     end
                     
                     if isMatch then
@@ -912,6 +916,16 @@ function Library:CreateWindow(windowname,windowinfo)
                 end
             end
         end)
+
+        -- Extra Button Execution Trigger Loop (Ensures MB4 and MB5 execute outside Listening mode)
+        local function checkStringMouseMatch(target)
+            if not isListening and currentBind == target and BindButton.Visible then
+                FireToggle(false)
+            end
+        end
+
+        Mouse.Button4Down:Connect(function() checkStringMouseMatch("MB4") end)
+        Mouse.Button5Down:Connect(function() checkStringMouseMatch("MB5") end)
     end
 
     FireToggle(true)
