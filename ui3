@@ -500,10 +500,11 @@ function Library:CreateWindow(windowname,windowinfo)
     -- SMART ARGUMENT PARSER (Handles Keybinds & Defaults Automatically)
     -- ========================================================
     local keybind, defaultState, callback, hasColorPicker, defaultColor, colorCallback
-    local hasKeybind = false -- FIX: Tracks if a keybind slot was explicitly requested
+    local hasKeybind = false -- Tracks if a keybind slot was explicitly requested
 
     if typeof(arg2) == "EnumItem" then
         -- Syntax style: Main:addToggle("Name", Enum.KeyCode.V, callback, defaultState)
+        -- OR Main:addToggle("Name", Enum.UserInputType.MouseButton2, callback, defaultState)
         keybind = arg2
         hasKeybind = true
         callback = arg3 or function() end
@@ -594,13 +595,20 @@ function Library:CreateWindow(windowname,windowinfo)
         end
         shared.SkidoMobileOffsetCount = shared.SkidoMobileOffsetCount or 0
     else
-        -- FIX: Correctly displays "None" if currentBind is nil
-        BindButton.Text = currentBind and currentBind.Name or "None"
+        -- Initializing the Keybind Text (Handles Mouse vs Keyboard formatting)
+        if currentBind then
+            if currentBind.EnumType == Enum.UserInputType then
+                BindButton.Text = string.gsub(currentBind.Name, "MouseButton", "MB")
+            else
+                BindButton.Text = currentBind.Name
+            end
+        else
+            BindButton.Text = "None"
+        end
     end
     
     BindButton.TextColor3 = Color3.fromRGB(150, 150, 150)
     BindButton.TextSize = 10.000
-    -- FIX: Uses hasKeybind flag so that Unknown keybind slots stay visible
     BindButton.Visible = (hasKeybind or isMobile)
     
     BindButtonCorner.CornerRadius = UDim.new(0, 4)
@@ -674,7 +682,7 @@ function Library:CreateWindow(windowname,windowinfo)
         ColorCanvas.Image = "rbxassetid://143332548" 
         ColorCanvas.ImageColor3 = Color3.fromRGB(255, 255, 255) 
         ColorCanvas.ZIndex = 101
-        ColorCanvas.Active = true           
+        ColorCanvas.Active = true            
         ColorCanvas.AutoButtonColor = false 
 
         PickerCircle.Name = "PickerCircle"
@@ -855,22 +863,45 @@ function Library:CreateWindow(windowname,windowinfo)
 
         UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
             if isListening then
-                if input.UserInputType == Enum.UserInputType.Keyboard then
-                    if input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.Backspace then
+                -- LISTENING MODE: Determine what type of input was just pressed
+                local isKeyboard = (input.UserInputType == Enum.UserInputType.Keyboard)
+                local isMouse = (input.UserInputType == Enum.UserInputType.MouseButton1 or 
+                                 input.UserInputType == Enum.UserInputType.MouseButton2 or 
+                                 input.UserInputType == Enum.UserInputType.MouseButton3)
+
+                if isKeyboard or isMouse then
+                    if (isKeyboard and (input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.Backspace)) then
                         currentBind = nil
                         BindButton.Text = "None"
                     else
-                        if input.KeyCode ~= Enum.KeyCode.Unknown then
+                        if isKeyboard then
                             currentBind = input.KeyCode
                             BindButton.Text = currentBind.Name
+                        else
+                            currentBind = input.UserInputType
+                            -- Shorten names for UI: MouseButton1 -> MB1
+                            BindButton.Text = string.gsub(currentBind.Name, "MouseButton", "MB")
                         end
                     end
                     BindButton.TextColor3 = Color3.fromRGB(150, 150, 150)
                     isListening = false
                 end
             else
-                if not gameProcessedEvent and currentBind and input.KeyCode == currentBind and BindButton.Visible then
-                    FireToggle(false)
+                -- ACTIVE MODE: Check if the input matches our saved currentBind
+                if not gameProcessedEvent and currentBind and BindButton.Visible then
+                    local isMatch = false
+                    
+                    -- Check for Keyboard Match
+                    if typeof(currentBind) == "EnumItem" and currentBind.EnumType == Enum.KeyCode then
+                        if input.KeyCode == currentBind then isMatch = true end
+                    -- Check for Mouse Match
+                    elseif typeof(currentBind) == "EnumItem" and currentBind.EnumType == Enum.UserInputType then
+                        if input.UserInputType == currentBind then isMatch = true end
+                    end
+                    
+                    if isMatch then
+                        FireToggle(false)
+                    end
                 end
             end
         end)
