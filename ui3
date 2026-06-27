@@ -856,9 +856,12 @@ function Library:CreateWindow(windowname,windowinfo)
         end)
     else
         BindButton.MouseButton1Down:Connect(function()
-            isListening = true
             BindButton.Text = "..."
             BindButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+            
+            -- FIX: Wait a fraction of a second so the initial left-click isn't caught by the listener
+            task.wait(0.1) 
+            isListening = true
         end)
 
         UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
