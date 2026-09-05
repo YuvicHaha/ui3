@@ -1,0 +1,63 @@
+return {
+    Name="My Plugin",
+
+    Build=function(Window)
+        local Combat=Window:addPage(
+            "Combat",
+            6,
+            true,
+            6
+        )
+
+        Combat:addToggle(
+            "Test Toggle",
+            false,
+            function(enabled)
+                print("Test Toggle:",enabled)
+            end
+        )
+
+        Combat:addButton(
+            "Test Button",
+            function()
+                print("Button clicked")
+            end
+        )
+
+        local Visuals=Window:addPage(
+            "Visuals",
+            6,
+            false,
+            6
+        )
+
+        Visuals:addSlider(
+            "FOV",
+            0,
+            180,
+            function(value)
+                print("FOV:",value)
+            end
+        )
+
+        local Misc=Window:addPage(
+            "Misc",
+            6,
+            false,
+            6
+        )
+
+        Misc:addDropdown(
+            "Mode",
+            {"Mode 1","Mode 2","Mode 3"},
+            5,
+            function(value)
+                print("Selected:",value)
+            end
+        )
+    end,
+
+    Unload=function()
+        print("My Plugin unloaded")
+    end
+}
