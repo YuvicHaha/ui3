@@ -2557,12 +2557,7 @@ function Library:CreateWindow(windowname,windowinfo)
     local ConfigNameBox
     local ConfigDropdown
     local ConfigStatus
-    ConfigPage:addLabel(
-        "Configs",
-        "Save, load and manage your configurations"
-    )
-
-    --// APPEARANCE / THEME
+--// APPEARANCE / THEME
     ConfigPage:addLabel(
         "Appearance",
         "Choose the interface gradient and color palette"
@@ -2602,6 +2597,12 @@ function Library:CreateWindow(windowname,windowinfo)
         end
     )
 
+    ConfigPage:addLabel(
+        "Configs",
+        "Save, load and manage your configurations"
+    )
+
+    
     local _,InputBox=ConfigPage:addTextBox(
         "",
         "Name...",
