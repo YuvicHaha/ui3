@@ -185,7 +185,7 @@ local function GetPluginFiles()
     for _,path in ipairs(result) do
         path=tostring(path)
 
-        if path:lower():sub(-4)==".lua" then
+        if lower:sub(-4)==".lua" or lower:sub(-4)==".txt" then
             table.insert(files,path)
         end
     end
