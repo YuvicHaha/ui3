@@ -461,7 +461,7 @@ function Library:CreateWindow(windowname,windowinfo)
         Tab.MouseButton1Click:Connect(ShowPage)
 
         Tab.MouseEnter:Connect(function()
-            if Tab.TextTransparency~0 then
+            if Tab.TextTransparency0 then
                 Tab.BackgroundColor3=Color3.fromRGB(10,10,10)
             end
         end)
