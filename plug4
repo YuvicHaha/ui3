@@ -2728,289 +2728,257 @@ function Library:CreateWindow(windowname,windowinfo)
     )
 
     --// PLUGIN SECTION
-    ConfigPage:addLabel(
-        "Plugins",
-        "Load Lua plugins from Skido/skido_plugin"
-    )
+ConfigPage:addLabel(
+    "Plugins",
+    "Load Lua plugins from Skido/skido_plugin"
+)
 
-    local PluginDropdown
-    local PluginStatus
+local PluginDropdown
+local PluginStatus
 
-    PluginDropdown=ConfigPage:addDropdown(
-        "",
-        {},
-        6,
-        function()
-        end
-    )
+local function RefreshPluginDropdown()
+    local files=GetPluginFiles()
 
-    ConfigPage:addButton(
-        "Refresh Plugins",
-        function()
-            local files=GetPluginFiles()
-
-            if PluginDropdown then
-                PluginDropdown.Refresh(files)
-            end
-
-            if #files==0 then
-                if PluginStatus then
-                    PluginStatus.Text=
-                        "No .lua plugins found"
-                    PluginStatus.TextColor3=
-                        Color3.fromRGB(
-                            140,
-                            140,
-                            140
-                        )
-                end
-            else
-                if PluginStatus then
-                    PluginStatus.Text=
-                        "Found "
-                        ..#files
-                        .." plugin"
-                        ..(#files==1 and "" or "s")
-
-                    PluginStatus.TextColor3=
-                        Color3.fromRGB(
-                            137,
-                            246,
-                            255
-                        )
-                end
-            end
-        end
-    )
-
-    do
-        local H=Instance.new("Frame")
-        local C=Instance.new("UICorner")
-        local T=Instance.new("TextLabel")
-
-        H.Parent=ConfigPage.__Page
-        H.BackgroundColor3=Color3.fromRGB(17,17,17)
-        H.BorderSizePixel=0
-        H.Size=UDim2.new(0,304,0,30)
-
-        C.CornerRadius=UDim.new(0,5)
-        C.Parent=H
-
-        T.Parent=H
-        T.BackgroundTransparency=1
-        T.Position=UDim2.new(0,7,0,0)
-        T.Size=UDim2.new(1,-14,1,0)
-        T.Font=Enum.Font.GothamSemibold
-        T.Text="Plugin loader ready"
-        T.TextColor3=Color3.fromRGB(140,140,140)
-        T.TextSize=9
-        T.TextXAlignment=Enum.TextXAlignment.Left
-
-        PluginStatus=T
+    if PluginDropdown then
+        PluginDropdown.Refresh(files)
     end
 
-    --// PLUGIN LOADER
-    local function LoadPlugin(path)
-        if type(path)~="string"
-        or path=="" then
+    if PluginStatus then
+        if #files==0 then
+            PluginStatus.Text="No .lua plugins found"
+            PluginStatus.TextColor3=Color3.fromRGB(140,140,140)
+        else
+            PluginStatus.Text=
+                "Found "
+                ..#files
+                .." plugin"
+                ..(#files==1 and "" or "s")
 
-            if PluginStatus then
-                PluginStatus.Text="Select a plugin first"
-                PluginStatus.TextColor3=
-                    Color3.fromRGB(
-                        255,
-                        120,
-                        120
-                    )
+            PluginStatus.TextColor3=
+                Color3.fromRGB(137,246,255)
+        end
+    end
+end
+
+PluginDropdown=ConfigPage:addDropdown(
+    "",
+    {},
+    6,
+    function()
+    end
+)
+
+ConfigPage:addButton(
+    "Refresh Plugins",
+    function()
+        RefreshPluginDropdown()
+    end
+)
+
+do
+    local H=Instance.new("Frame")
+    local C=Instance.new("UICorner")
+    local T=Instance.new("TextLabel")
+
+    H.Parent=ConfigPage.__Page
+    H.BackgroundColor3=Color3.fromRGB(17,17,17)
+    H.BorderSizePixel=0
+    H.Size=UDim2.new(0,304,0,30)
+
+    C.CornerRadius=UDim.new(0,5)
+    C.Parent=H
+
+    T.Parent=H
+    T.BackgroundTransparency=1
+    T.Position=UDim2.new(0,7,0,0)
+    T.Size=UDim2.new(1,-14,1,0)
+    T.Font=Enum.Font.GothamSemibold
+    T.Text="Plugin loader ready"
+    T.TextColor3=Color3.fromRGB(140,140,140)
+    T.TextSize=9
+    T.TextXAlignment=Enum.TextXAlignment.Left
+    T.TextWrapped=true
+
+    PluginStatus=T
+end
+
+--// PLUGIN EXECUTION
+local function ResolvePluginResult(result)
+    local current=result
+
+    for i=1,8 do
+        if type(current)=="table" then
+            if type(current.Tabs)=="table" then
+                return current
             end
 
-            return false
-        end
-
-        local fileKey=tostring(path)
-
-        if LoadedPlugins[fileKey] then
-            if PluginStatus then
-                PluginStatus.Text=
-                    "Already loaded: "
-                    ..PluginFileName(fileKey)
-
-                PluginStatus.TextColor3=
-                    Color3.fromRGB(
-                        255,
-                        190,
-                        90
-                    )
+            if type(current.Plugin)=="table" then
+                current=current.Plugin
+            elseif type(current.Data)=="table" then
+                current=current.Data
+            elseif type(current.Module)=="table" then
+                current=current.Module
+            else
+                return nil,"Plugin did not return a valid plugin table"
             end
 
-            return false
-        end
+        elseif type(current)=="function" then
+            local ok,nextResult=pcall(current)
 
-        if not isfile(fileKey) then
-            if PluginStatus then
-                PluginStatus.Text="Plugin file not found"
-                PluginStatus.TextColor3=
-                    Color3.fromRGB(
-                        255,
-                        120,
-                        120
-                    )
+            if not ok then
+                return nil,tostring(nextResult)
             end
 
-            return false
+            current=nextResult
+        else
+            return nil,"Plugin returned "..type(current)
         end
+    end
 
-        if type(readfile)~="function" then
-            if PluginStatus then
-                PluginStatus.Text=
-                    "readfile unavailable"
+    return nil,"Plugin wrapper depth exceeded"
+end
 
-                PluginStatus.TextColor3=
-                    Color3.fromRGB(
-                        255,
-                        120,
-                        120
+local function ExecutePluginSource(source,fileName)
+    if type(loadstring)~="function" then
+        return nil,"loadstring unavailable"
+    end
+
+    local ok,chunk=pcall(function()
+        return loadstring(
+            source,
+            "@"..tostring(fileName)
+        )
+    end)
+
+    if not ok or type(chunk)~="function" then
+        return nil,tostring(chunk)
+    end
+
+    local okRun,result=pcall(chunk)
+
+    if not okRun then
+        return nil,tostring(result)
+    end
+
+    return ResolvePluginResult(result)
+end
+
+--// PLUGIN LOADER
+local function LoadPlugin(path)
+    if type(path)~="string" or path=="" then
+        if PluginStatus then
+            PluginStatus.Text="Select a plugin first"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    local fileKey=tostring(path)
+
+    if LoadedPlugins[fileKey] then
+        if PluginStatus then
+            PluginStatus.Text="Already loaded: "..PluginFileName(fileKey)
+            PluginStatus.TextColor3=Color3.fromRGB(255,190,90)
+        end
+        return false
+    end
+
+    if type(isfile)~="function" or not isfile(fileKey) then
+        if PluginStatus then
+            PluginStatus.Text="Plugin file not found"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    if type(readfile)~="function" then
+        if PluginStatus then
+            PluginStatus.Text="readfile unavailable"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    if type(loadstring)~="function" then
+        if PluginStatus then
+            PluginStatus.Text="loadstring unavailable"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    local okRead,source=pcall(function()
+        return readfile(fileKey)
+    end)
+
+    if not okRead or type(source)~="string" or source=="" then
+        if PluginStatus then
+            PluginStatus.Text="Failed to read plugin"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    local plugin,err=ExecutePluginSource(
+        source,
+        PluginFileName(fileKey)
+    )
+
+    if not plugin then
+        if PluginStatus then
+            PluginStatus.Text="Plugin error: "..tostring(err)
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    if type(plugin.Tabs)~="table" then
+        if PluginStatus then
+            PluginStatus.Text="Plugin has no Tabs table"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    local pluginName=tostring(
+        plugin.Name or PluginFileName(fileKey)
+    )
+
+    local pluginInfo={
+        Name=pluginName,
+        File=fileKey,
+        Plugin=plugin,
+        Tabs={},
+        Entries={}
+    }
+
+    LoadedPlugins[fileKey]=pluginInfo
+    CurrentPlugin=pluginInfo
+
+    local createdTabs=0
+    local errors={}
+
+    for _,tabInfo in ipairs(plugin.Tabs) do
+        if type(tabInfo)=="table"
+        and type(tabInfo.Name)=="string" then
+
+            local requestedName=tostring(tabInfo.Name)
+
+            if requestedName:lower()~="config"
+            and not PageTabs[requestedName] then
+
+                local pageOk,page=pcall(function()
+                    return PageYep:addPage(
+                        requestedName,
+                        tabInfo.ScrollSize or 6,
+                        false,
+                        tabInfo.ElementSpacing or 6
                     )
-            end
+                end)
 
-            return false
-        end
-
-        if type(loadstring)~="function" then
-            if PluginStatus then
-                PluginStatus.Text=
-                    "loadstring unavailable"
-
-                PluginStatus.TextColor3=
-                    Color3.fromRGB(
-                        255,
-                        120,
-                        120
-                    )
-            end
-
-            return false
-        end
-
-        local okRead,source=pcall(function()
-            return readfile(fileKey)
-        end)
-
-        if not okRead
-        or type(source)~="string" then
-
-            if PluginStatus then
-                PluginStatus.Text=
-                    "Failed to read plugin"
-
-                PluginStatus.TextColor3=
-                    Color3.fromRGB(
-                        255,
-                        120,
-                        120
-                    )
-            end
-
-            return false
-        end
-
-        local okCompile,chunk=pcall(function()
-            return loadstring(
-                source,
-                "@"..PluginFileName(fileKey)
-            )
-        end)
-
-        if not okCompile
-        or type(chunk)~="function" then
-
-            if PluginStatus then
-                PluginStatus.Text=
-                    "Plugin compile error"
-
-                PluginStatus.TextColor3=
-                    Color3.fromRGB(
-                        255,
-                        120,
-                        120
-                    )
-            end
-
-            return false
-        end
-
-        local okRun,plugin=pcall(chunk)
-
-        if not okRun
-        or type(plugin)~="table" then
-
-            if PluginStatus then
-                PluginStatus.Text=
-                    "Plugin must return a table"
-
-                PluginStatus.TextColor3=
-                    Color3.fromRGB(
-                        255,
-                        120,
-                        120
-                    )
-            end
-
-            return false
-        end
-
-        local pluginName=
-            tostring(
-                plugin.Name
-                or PluginFileName(fileKey)
-            )
-
-        if type(plugin.Tabs)~="table" then
-            if PluginStatus then
-                PluginStatus.Text=
-                    "Plugin has no Tabs table"
-
-                PluginStatus.TextColor3=
-                    Color3.fromRGB(
-                        255,
-                        120,
-                        120
-                    )
-            end
-
-            return false
-        end
-
-        local pluginInfo={
-            Name=pluginName,
-            File=fileKey,
-            Plugin=plugin,
-            Tabs={}
-        }
-
-        LoadedPlugins[fileKey]=pluginInfo
-
-        CurrentPlugin=pluginInfo
-
-        local createdTabs=0
-
-        for _,tabInfo in ipairs(plugin.Tabs) do
-            if type(tabInfo)=="table"
-            and type(tabInfo.Name)=="string" then
-
-                local requestedName=
-                    tostring(tabInfo.Name)
-
-                if requestedName:lower()=="config" then
-                    --// Config is reserved by Skido.
-                else
-                    local page=
-                        PageYep:addPage(
-                            requestedName,
-                            tabInfo.ScrollSize or 6,
-                            false,
-                            tabInfo.ElementSpacing or 6
-                        )
+                if pageOk and page then
+                    page.__Tab.LayoutOrder=PluginTabOrder
+                    PluginTabOrder+=1
 
                     table.insert(
                         pluginInfo.Tabs,
@@ -3020,75 +2988,88 @@ function Library:CreateWindow(windowname,windowinfo)
                     createdTabs+=1
 
                     if type(tabInfo.Elements)=="function" then
-                        local success,err=
-                            pcall(
-                                tabInfo.Elements,
-                                page
-                            )
+                        local success,elementErr=pcall(
+                            tabInfo.Elements,
+                            page,
+                            plugin
+                        )
 
                         if not success then
-                            warn(
-                                "[Skido Plugin] "
-                                ..pluginName
-                                ..": "
-                                ..tostring(err)
+                            table.insert(
+                                errors,
+                                requestedName..": "..tostring(elementErr)
                             )
                         end
                     end
+                else
+                    table.insert(
+                        errors,
+                        requestedName..": "..tostring(page)
+                    )
                 end
             end
         end
+    end
 
-        CurrentPlugin=nil
+    CurrentPlugin=nil
 
-        UpdateWindowLayout()
+    UpdateWindowLayout()
 
-        --// Show first newly loaded plugin tab.
-        if pluginInfo.Tabs[1] then
-            local first=
-                pluginInfo.Tabs[1]
-
-            if first.__Tab
-            and first.__Tab.Parent then
-
-                first.__Tab:Activate()
-                first.__Page.Visible=true
-
-                for _,page in ipairs(
-                    Folder:GetChildren()
-                ) do
-                    if page:IsA("ScrollingFrame")
-                    and page~=first.__Page then
-
-                        page.Visible=false
-                    end
-                end
-
-                for _,tab in pairs(PageTabs) do
-                    if tab:IsA("GuiButton") then
-                        tab.TextTransparency=
-                            tab==first.__Tab
-                            and 0
-                            or .3
-
-                        tab.BackgroundColor3=
-                            tab==first.__Tab
-                            and Color3.fromRGB(
-                                25,
-                                25,
-                                25
-                            )
-                            or Color3.fromRGB(
-                                15,
-                                15,
-                                15
-                            )
-                    end
-                end
-            end
-        end
+    if createdTabs==0 then
+        LoadedPlugins[fileKey]=nil
 
         if PluginStatus then
+            PluginStatus.Text="Plugin created no tabs"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+
+        return false
+    end
+
+    --// Show first newly loaded plugin tab
+    if pluginInfo.Tabs[1] then
+        local first=pluginInfo.Tabs[1]
+
+        if first.__Tab and first.__Tab.Parent then
+            first.__Tab:Activate()
+            first.__Page.Visible=true
+
+            for _,page in ipairs(Folder:GetChildren()) do
+                if page:IsA("ScrollingFrame")
+                and page~=first.__Page then
+                    page.Visible=false
+                end
+            end
+
+            for _,tab in pairs(PageTabs) do
+                if tab:IsA("GuiButton") then
+                    if tab==first.__Tab then
+                        tab.TextTransparency=0
+                        tab.BackgroundColor3=Color3.fromRGB(25,25,25)
+                    else
+                        tab.TextTransparency=.3
+                        tab.BackgroundColor3=Color3.fromRGB(15,15,15)
+                    end
+                end
+            end
+        end
+    end
+
+    if PluginStatus then
+        if #errors>0 then
+            PluginStatus.Text=
+                "Loaded: "
+                ..pluginName
+                .." ("
+                ..createdTabs
+                .." tab"
+                ..(createdTabs==1 and "" or "s")
+                ..", "
+                ..#errors
+                .." error"
+                ..(#errors==1 and "" or "s")
+                ..")"
+        else
             PluginStatus.Text=
                 "Loaded: "
                 ..pluginName
@@ -3097,83 +3078,72 @@ function Library:CreateWindow(windowname,windowinfo)
                 .." tab"
                 ..(createdTabs==1 and "" or "s")
                 ..")"
-
-            PluginStatus.TextColor3=
-                Color3.fromRGB(
-                    137,
-                    246,
-                    255
-                )
         end
 
-        return true
+        PluginStatus.TextColor3=Color3.fromRGB(137,246,255)
     end
 
-    ConfigPage:addButton(
-        "Load Plugin",
-        function()
-            local selected=
-                PluginDropdown
-                and PluginDropdown.Get()
+    return true
+end
 
-            if not selected then
-                if PluginStatus then
-                    PluginStatus.Text=
-                        "Select a plugin first"
+ConfigPage:addButton(
+    "Load Plugin",
+    function()
+        local selected=
+            PluginDropdown
+            and PluginDropdown.Get()
 
-                    PluginStatus.TextColor3=
-                        Color3.fromRGB(
-                            255,
-                            120,
-                            120
-                        )
-                end
-
-                return
+        if not selected then
+            if PluginStatus then
+                PluginStatus.Text="Select a plugin first"
+                PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
             end
-
-            LoadPlugin(
-                tostring(selected)
-            )
+            return
         end
-    )
 
-    --// INITIAL SETTINGS
+        LoadPlugin(tostring(selected))
+    end
+)
+
+--// INITIAL SETTINGS
 task.spawn(function()
     if not SetupFolder() then
         return
     end
 
-    local settingsPath = ConfigFolder .. "/settings.json"
+    local settingsPath=ConfigFolder.."/settings.json"
 
     if isfile(settingsPath) then
-        local ok, contents = pcall(function()
+        local ok,contents=pcall(function()
             return readfile(settingsPath)
         end)
 
         if ok and contents then
-            local decodedOk, data = pcall(function()
+            local decodedOk,data=pcall(function()
                 return HttpService:JSONDecode(contents)
             end)
 
-            if decodedOk and type(data) == "table" then
-                if type(data.Config) == "string" and data.Config ~= "" then
-                    CurrentConfig = CleanName(data.Config)
+            if decodedOk and type(data)=="table" then
+                if type(data.Config)=="string"
+                and data.Config~="" then
+                    CurrentConfig=CleanName(data.Config)
                 end
 
-                AutoLoad = data.AutoLoad == true
+                AutoLoad=data.AutoLoad==true
 
                 if ConfigNameBox then
-                    ConfigNameBox.Text = CurrentConfig
+                    ConfigNameBox.Text=CurrentConfig
                 end
             end
         end
     end
 
-    task.wait(0.15)
+    task.wait(.15)
 
     if ConfigDropdown then
-        ConfigDropdown.Refresh(GetConfigFiles())
+        ConfigDropdown.Refresh(
+            GetConfigFiles()
+        )
     end
 
     if PluginDropdown then
@@ -3181,31 +3151,29 @@ task.spawn(function()
     end
 
     if AutoLoad then
-        task.wait(0.25)
+        task.wait(.25)
         LoadConfig(CurrentConfig)
     end
 end)
 
-    task.defer(function()
-        task.wait(.1)
+task.defer(function()
+    task.wait(.1)
 
-        if ConfigDropdown then
-            ConfigDropdown.Refresh(
-                GetConfigFiles()
-            )
-        end
+    if ConfigDropdown then
+        ConfigDropdown.Refresh(
+            GetConfigFiles()
+        )
+    end
 
-        if PluginDropdown then
-            PluginDropdown.Refresh(
-                GetPluginFiles()
-            )
-        end
+    if PluginDropdown then
+        RefreshPluginDropdown()
+    end
 
-        UpdateTogglePanel()
-        UpdateWindowLayout()
-    end)
+    UpdateTogglePanel()
+    UpdateWindowLayout()
+end)
 
-    return PageYep
+return PageYep
 end
 
 return Library
