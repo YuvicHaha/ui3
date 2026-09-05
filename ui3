@@ -198,8 +198,7 @@ local function GetPluginFiles()
 end
 
 local function PluginFileName(path)
-    return tostring(path):match("([^/\\]+)$")
-        or tostring(path)
+    return tostring(path):match("([^/\\]+)%.[^%.]+$") or tostring(path)
 end
 
 function Library:CreateWindow(windowname,windowinfo)
