@@ -1,4 +1,3 @@
-
 local function DestroyYep()
     for i=1,69 do
         local g=game.CoreGui:FindFirstChild("fu8rj82n")
@@ -14,6 +13,7 @@ local Players=game:GetService("Players")
 local HttpService=game:GetService("HttpService")
 
 local ConfigFolder="Skido"
+local PluginFolder=ConfigFolder.."/skido_plugin"
 
 local function HasFS()
     return type(isfile)=="function"
@@ -23,11 +23,31 @@ end
 
 local function SetupFolder()
     if not HasFS() then return false end
-    if type(isfolder)=="function" and type(makefolder)=="function" then
+
+    if type(isfolder)=="function"
+    and type(makefolder)=="function" then
+
         if not isfolder(ConfigFolder) then
             pcall(makefolder,ConfigFolder)
         end
     end
+
+    return true
+end
+
+local function SetupPluginFolder()
+    if not SetupFolder() then
+        return false
+    end
+
+    if type(isfolder)=="function"
+    and type(makefolder)=="function" then
+
+        if not isfolder(PluginFolder) then
+            pcall(makefolder,PluginFolder)
+        end
+    end
+
     return true
 end
 
@@ -36,6 +56,7 @@ local function CleanName(name)
     name=name:gsub("[^%w_%- ]","")
     name=name:gsub("^%s+","")
     name=name:gsub("%s+$","")
+
     return name~="" and name or "Default"
 end
 
@@ -44,7 +65,10 @@ local function ConfigPath(name)
 end
 
 local function ColorToTable(c)
-    if typeof(c)~="Color3" then return nil end
+    if typeof(c)~="Color3" then
+        return nil
+    end
+
     return {
         __type="Color3",
         R=c.R,
@@ -54,7 +78,11 @@ local function ColorToTable(c)
 end
 
 local function TableToColor(v)
-    if type(v)~="table" or v.__type~="Color3" then return nil end
+    if type(v)~="table"
+    or v.__type~="Color3" then
+        return nil
+    end
+
     return Color3.new(
         tonumber(v.R) or 1,
         tonumber(v.G) or 1,
@@ -63,7 +91,9 @@ local function TableToColor(v)
 end
 
 local function SerializeBind(bind)
-    if not bind then return nil end
+    if not bind then
+        return nil
+    end
 
     if bind.EnumType==Enum.KeyCode then
         return "KeyCode|"..bind.Name
@@ -77,7 +107,9 @@ local function SerializeBind(bind)
 end
 
 local function DeserializeBind(value)
-    if type(value)~="string" then return nil end
+    if type(value)~="string" then
+        return nil
+    end
 
     local typ,name=value:match("^([^|]+)|(.+)$")
 
@@ -89,6 +121,7 @@ local function DeserializeBind(value)
         if ok and result then
             return result
         end
+
     elseif typ=="UserInputType" then
         local ok,result=pcall(function()
             return Enum.UserInputType[name]
@@ -105,7 +138,8 @@ end
 local function GetConfigFiles()
     local files={}
 
-    if not SetupFolder() or type(listfiles)~="function" then
+    if not SetupFolder()
+    or type(listfiles)~="function" then
         return files
     end
 
@@ -130,6 +164,42 @@ local function GetConfigFiles()
     end)
 
     return files
+end
+
+local function GetPluginFiles()
+    local files={}
+
+    if not SetupPluginFolder()
+    or type(listfiles)~="function" then
+        return files
+    end
+
+    local ok,result=pcall(function()
+        return listfiles(PluginFolder)
+    end)
+
+    if not ok or type(result)~="table" then
+        return files
+    end
+
+    for _,path in ipairs(result) do
+        path=tostring(path)
+
+        if path:lower():sub(-4)==".lua" then
+            table.insert(files,path)
+        end
+    end
+
+    table.sort(files,function(a,b)
+        return a:lower()<b:lower()
+    end)
+
+    return files
+end
+
+local function PluginFileName(path)
+    return tostring(path):match("([^/\\]+)$")
+        or tostring(path)
 end
 
 function Library:CreateWindow(windowname,windowinfo)
@@ -285,7 +355,9 @@ function Library:CreateWindow(windowname,windowinfo)
         if i.UserInputType==Enum.UserInputType.MouseButton1
         or i.UserInputType==Enum.UserInputType.Touch then
 
-            if SearchBox:IsFocused() then return end
+            if SearchBox:IsFocused() then
+                return
+            end
 
             dragging=true
             dragStart=i.Position
@@ -428,6 +500,88 @@ function Library:CreateWindow(windowname,windowinfo)
     local AllElements={}
     local PageTabs={}
     local ConfigEntries={}
+    local PluginConfigEntries={}
+
+    local LoadedPlugins={}
+    local PluginTabOrder=0
+    local CurrentPlugin=nil
+
+    --// AUTO RESIZE
+    local function UpdateWindowLayout()
+        local tabCount=0
+
+        for _,tab in pairs(PageTabs) do
+            if tab and tab.Parent then
+                tabCount+=1
+            end
+        end
+
+        local requiredHeight=
+            (tabCount*27)
+            +math.max(0,tabCount-1)*6
+            +10
+
+        local contentHeight=math.max(238,requiredHeight)
+
+        Frame.Size=UDim2.new(
+            0,
+            455,
+            0,
+            contentHeight+62
+        )
+
+        Dash.Size=UDim2.new(
+            0,
+            115,
+            0,
+            contentHeight
+        )
+
+        Tabs.Size=UDim2.new(
+            0,
+            108,
+            0,
+            contentHeight-9
+        )
+
+        Pages.Size=UDim2.new(
+            0,
+            319,
+            0,
+            contentHeight
+        )
+
+        for _,page in ipairs(Folder:GetChildren()) do
+            if page:IsA("ScrollingFrame") then
+                page.Size=UDim2.new(
+                    1,
+                    -3,
+                    0,
+                    contentHeight-13
+                )
+            end
+        end
+
+        task.defer(function()
+            for _,page in ipairs(Folder:GetChildren()) do
+                if page:IsA("ScrollingFrame") then
+                    local layout=page:FindFirstChildOfClass("UIListLayout")
+
+                    if layout then
+                        page.CanvasSize=UDim2.new(
+                            0,
+                            0,
+                            0,
+                            math.max(
+                                layout.AbsoluteContentSize.Y+12,
+                                page.AbsoluteSize.Y
+                            )
+                        )
+                    end
+                end
+            end
+        end)
+    end
 
     --// INDEPENDENT LEFT ACTIVE PANEL
     local TogglePanel=Instance.new("Frame")
@@ -457,7 +611,7 @@ function Library:CreateWindow(windowname,windowinfo)
     ToggleTitle.Parent=TogglePanel
     ToggleTitle.BackgroundTransparency=1
     ToggleTitle.Position=UDim2.new(0,12,0,6)
-ToggleTitle.Size=UDim2.new(1,-24,0,22)
+    ToggleTitle.Size=UDim2.new(1,-24,0,22)
     ToggleTitle.Font=Enum.Font.GothamSemibold
     ToggleTitle.Text="Active Toggles"
     ToggleTitle.TextColor3=Color3.fromRGB(137,246,255)
@@ -468,7 +622,7 @@ ToggleTitle.Size=UDim2.new(1,-24,0,22)
     ToggleList.Parent=TogglePanel
     ToggleList.BackgroundTransparency=1
     ToggleList.Position=UDim2.new(0,10,0,34)
-ToggleList.Size=UDim2.new(1,-20,1,-40)
+    ToggleList.Size=UDim2.new(1,-20,1,-40)
     ToggleList.ZIndex=201
 
     ToggleLayout.Parent=ToggleList
@@ -549,6 +703,7 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
         if HighlightedObject
         and HighlightedObject.Parent
         and HighlightedColor then
+
             HighlightedObject.BackgroundColor3=HighlightedColor
         end
 
@@ -557,7 +712,9 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
     end
 
     local function Register(obj,name,page,typ)
-        if not obj then return end
+        if not obj then
+            return
+        end
 
         table.insert(AllElements,{
             Object=obj,
@@ -568,12 +725,25 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
     end
 
     local function RegisterConfig(name,typ,getter,setter)
-        table.insert(ConfigEntries,{
+        local entry={
             Name=tostring(name or ""),
             Type=typ,
             Get=getter,
-            Set=setter
-        })
+            Set=setter,
+            Plugin=CurrentPlugin
+        }
+
+        if CurrentPlugin then
+            table.insert(
+                PluginConfigEntries,
+                entry
+            )
+        else
+            table.insert(
+                ConfigEntries,
+                entry
+            )
+        end
     end
 
     --// SEARCH
@@ -595,7 +765,9 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
             if data.Name:lower():find(query,1,true) then
                 local page=data.Page
 
-                if not page or not page.Parent then return end
+                if not page or not page.Parent then
+                    return
+                end
 
                 for _,p in ipairs(Folder:GetChildren()) do
                     if p:IsA("ScrollingFrame") then
@@ -618,8 +790,14 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
                 task.defer(function()
                     task.wait()
 
-                    if token~=SearchToken then return end
-                    if not data.Object or not data.Object.Parent then return end
+                    if token~=SearchToken then
+                        return
+                    end
+
+                    if not data.Object
+                    or not data.Object.Parent then
+                        return
+                    end
 
                     local y=
                         data.Object.AbsolutePosition.Y
@@ -645,16 +823,20 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
                     HighlightedObject=data.Object
                     HighlightedColor=data.Object.BackgroundColor3
 
-                    data.Object.BackgroundColor3=Color3.fromRGB(35,70,75)
+                    data.Object.BackgroundColor3=
+                        Color3.fromRGB(35,70,75)
 
                     task.delay(.55,function()
-                        if ht~=HighlightToken then return end
+                        if ht~=HighlightToken then
+                            return
+                        end
 
                         if HighlightedObject==data.Object
                         and HighlightedObject.Parent
                         and HighlightedColor then
 
-                            HighlightedObject.BackgroundColor3=HighlightedColor
+                            HighlightedObject.BackgroundColor3=
+                                HighlightedColor
                         end
 
                         HighlightedObject=nil
@@ -676,7 +858,18 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
     --// PAGES
     local PageYep={}
 
-    function PageYep:addPage(pagename,scrollsize,visible,elementspacing)
+    function PageYep:addPage(
+        pagename,
+        scrollsize,
+        visible,
+        elementspacing
+    )
+        local pageName=tostring(pagename or "Page")
+
+        if PageTabs[pageName] then
+            pageName=pageName.." "..tostring(math.random(1000,9999))
+        end
+
         local Tab=Instance.new("TextButton")
         local TC=Instance.new("UICorner")
         local Home=Instance.new("ScrollingFrame")
@@ -689,7 +882,7 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
         Tab.Size=UDim2.new(0,108,0,27)
         Tab.AutoButtonColor=false
         Tab.Font=Enum.Font.GothamSemibold
-        Tab.Text=pagename or "Page"
+        Tab.Text=pageName
         Tab.TextColor3=Color3.new(1,1,1)
         Tab.TextSize=11
         Tab.TextTransparency=visible and 0 or .3
@@ -697,7 +890,7 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
         TC.CornerRadius=UDim.new(0,7)
         TC.Parent=Tab
 
-        Home.Name=pagename or "Page"
+        Home.Name=pageName
         Home.Parent=Folder
         Home.Active=true
         Home.BackgroundTransparency=1
@@ -724,16 +917,29 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
                 0,
                 0,
                 0,
-                math.max(h,Home.AbsoluteSize.Y)
+                math.max(
+                    h,
+                    Home.AbsoluteSize.Y
+                )
             )
         end
 
-        Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateCanvas)
-        Home:GetPropertyChangedSignal("AbsoluteSize"):Connect(UpdateCanvas)
+        Layout:GetPropertyChangedSignal(
+            "AbsoluteContentSize"
+        ):Connect(UpdateCanvas)
+
+        Home:GetPropertyChangedSignal(
+            "AbsoluteSize"
+        ):Connect(UpdateCanvas)
 
         task.defer(UpdateCanvas)
 
-        PageTabs[pagename]=Tab
+        PageTabs[pageName]=Tab
+
+        if pageName~="Config" then
+            PluginTabOrder+=1
+            Tab.LayoutOrder=PluginTabOrder
+        end
 
         local function ShowPage()
             ClearHighlight()
@@ -749,7 +955,9 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
 
             for _,t in ipairs(Tabs:GetChildren()) do
                 if t:IsA("GuiButton") then
-                    t.TextTransparency=t==Tab and 0 or .3
+                    t.TextTransparency=
+                        t==Tab and 0 or .3
+
                     t.BackgroundColor3=
                         t==Tab
                         and Color3.fromRGB(25,25,25)
@@ -764,7 +972,8 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
 
         Tab.MouseEnter:Connect(function()
             if Tab.TextTransparency==0 then
-                Tab.BackgroundColor3=Color3.fromRGB(10,10,10)
+                Tab.BackgroundColor3=
+                    Color3.fromRGB(10,10,10)
             end
         end)
 
@@ -818,6 +1027,7 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
             I.TextSize=9
 
             RegisterElement(H,name,"Label")
+
             return H,T,I
         end
 
@@ -849,6 +1059,7 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
             end)
 
             RegisterElement(H,name,"Button")
+
             return H,B
         end
 
@@ -873,12 +1084,14 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
                     color=d
                     colorcb=e
                 end
+
             elseif typeof(a)=="boolean" then
                 default=a
                 callback=b or function() end
                 picker=c or false
                 color=d
                 colorcb=e
+
             else
                 default=false
                 callback=a or function() end
@@ -887,33 +1100,29 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
                 colorcb=d
             end
 
-            --// NEW:
-            --// If the last argument is true, the GUI toggle only
-            --// arms/disarms the keybind. The keybind controls the
-            --// actual callback state.
-            --
-            --// Example:
-            --// addToggle("Fly",Enum.KeyCode.T,function(v) ... end,true)
-            --
-            --// Because of the existing optional arguments, this
-            --// detects an explicit boolean in the final position.
             if typeof(f)=="boolean" and picker==false then
                 keybindMode=f
-            elseif typeof(e)=="boolean" and picker==false and color==nil then
+            elseif typeof(e)=="boolean"
+            and picker==false
+            and color==nil then
+
                 keybindMode=e
-            elseif typeof(d)=="boolean" and picker==false and color==nil then
+
+            elseif typeof(d)=="boolean"
+            and picker==false
+            and color==nil then
+
                 keybindMode=d
             else
                 keybindMode=false
             end
 
-            --// Clean/simple detection for the common API:
-            --// addToggle(name,keybind,callback,true)
             if typeof(a)=="EnumItem"
             and typeof(c)=="boolean"
             and d==nil
             and e==nil
             and f==nil then
+
                 keybindMode=c
                 default=false
                 picker=false
@@ -979,7 +1188,10 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
             if UIS.TouchEnabled then
                 Bind.Text="Show"
             elseif currentBind then
-                Bind.Text=currentBind.Name:gsub("MouseButton","MB")
+                Bind.Text=currentBind.Name:gsub(
+                    "MouseButton",
+                    "MB"
+                )
             else
                 Bind.Text="None"
             end
@@ -1025,7 +1237,9 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
             end
 
             local function AddRightRow()
-                if Row and Row.Parent then return end
+                if Row and Row.Parent then
+                    return
+                end
 
                 Row=Instance.new("TextLabel")
                 Row.Parent=ToggleList
@@ -1052,9 +1266,10 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
             end
 
             local function UpdateRightRow()
-                --// In keybind mode, show the toggle only while armed.
-                --// In normal mode, show it while actually enabled.
-                local shouldShow=keybindMode and armed or active
+                local shouldShow=
+                    keybindMode
+                    and armed
+                    or active
 
                 if not shouldShow then
                     RemoveRightRow()
@@ -1064,9 +1279,17 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
                 AddRightRow()
 
                 if Row then
-                    local stateText=active and "ON" or "ARMED"
-                    local bindText=currentBind
-                        and currentBind.Name:gsub("MouseButton","MB")
+                    local stateText=
+                        active
+                        and "ON"
+                        or "OFF"
+
+                    local bindText=
+                        currentBind
+                        and currentBind.Name:gsub(
+                            "MouseButton",
+                            "MB"
+                        )
                         or "None"
 
                     Row.Text=
@@ -1078,8 +1301,16 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
 
                     Row.TextColor3=
                         active
-                        and Color3.fromRGB(137,246,255)
-                        or Color3.fromRGB(170,170,170)
+                        and Color3.fromRGB(
+                            137,
+                            246,
+                            255
+                        )
+                        or Color3.fromRGB(
+                            170,
+                            170,
+                            170
+                        )
                 end
             end
 
@@ -1125,7 +1356,8 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
 
                 UpdateRightRow()
 
-                if callCallback~=false and not keybindMode then
+                if callCallback~=false
+                and not keybindMode then
                     pcall(callback,armed)
                 end
 
@@ -1153,6 +1385,7 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
                 UpdateRightRow()
 
                 pcall(callback,active)
+
                 task.defer(UpdateCanvas)
             end
 
@@ -1251,7 +1484,9 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
                     local s=Canvas.AbsoluteSize
                     local p=Canvas.AbsolutePosition
 
-                    if s.X<=0 or s.Y<=0 then return end
+                    if s.X<=0 or s.Y<=0 then
+                        return
+                    end
 
                     local x=math.clamp(
                         (i.Position.X-p.X)/s.X,
@@ -1266,7 +1501,11 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
                     )
 
                     Circle.Position=UDim2.new(x,0,y,0)
-                    color=Color3.fromHSV(x,1-y,1)
+                    color=Color3.fromHSV(
+                        x,
+                        1-y,
+                        1
+                    )
 
                     CB.BackgroundColor3=color
                     Circle.BackgroundColor3=color
@@ -1275,8 +1514,10 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
                 end
 
                 Canvas.InputBegan:Connect(function(i)
-                    if i.UserInputType==Enum.UserInputType.MouseButton1
-                    or i.UserInputType==Enum.UserInputType.Touch then
+                    if i.UserInputType==
+                        Enum.UserInputType.MouseButton1
+                    or i.UserInputType==
+                        Enum.UserInputType.Touch then
 
                         colorDrag=true
                         SetColor(i)
@@ -1286,16 +1527,20 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
                 UIS.InputChanged:Connect(function(i)
                     if colorDrag
                     and (
-                        i.UserInputType==Enum.UserInputType.MouseMovement
-                        or i.UserInputType==Enum.UserInputType.Touch
+                        i.UserInputType==
+                            Enum.UserInputType.MouseMovement
+                        or i.UserInputType==
+                            Enum.UserInputType.Touch
                     ) then
                         SetColor(i)
                     end
                 end)
 
                 UIS.InputEnded:Connect(function(i)
-                    if i.UserInputType==Enum.UserInputType.MouseButton1
-                    or i.UserInputType==Enum.UserInputType.Touch then
+                    if i.UserInputType==
+                        Enum.UserInputType.MouseButton1
+                    or i.UserInputType==
+                        Enum.UserInputType.Touch then
                         colorDrag=false
                     end
                 end)
@@ -1350,7 +1595,10 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
                         SB.MouseButton1Click:Connect(function()
                             if keybindMode then
                                 if armed then
-                                    SetActive(not active,true)
+                                    SetActive(
+                                        not active,
+                                        true
+                                    )
                                 end
                             else
                                 active=not active
@@ -1359,13 +1607,22 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
 
                             SB.BackgroundColor3=
                                 active
-                                and Color3.fromRGB(40,140,70)
-                                or Color3.fromRGB(30,30,30)
+                                and Color3.fromRGB(
+                                    40,
+                                    140,
+                                    70
+                                )
+                                or Color3.fromRGB(
+                                    30,
+                                    30,
+                                    30
+                                )
 
                             SB.TextColor3=Color3.new(1,1,1)
                         end)
                     end
                 end)
+
             elseif hasBind then
                 local listening=false
 
@@ -1376,18 +1633,25 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
 
                 UIS.InputBegan:Connect(function(i,gp)
                     if listening then
-                        if i.UserInputType==Enum.UserInputType.Keyboard
-                        or i.UserInputType==Enum.UserInputType.MouseButton1
-                        or i.UserInputType==Enum.UserInputType.MouseButton2
-                        or i.UserInputType==Enum.UserInputType.MouseButton3 then
+                        if i.UserInputType==
+                            Enum.UserInputType.Keyboard
+                        or i.UserInputType==
+                            Enum.UserInputType.MouseButton1
+                        or i.UserInputType==
+                            Enum.UserInputType.MouseButton2
+                        or i.UserInputType==
+                            Enum.UserInputType.MouseButton3 then
 
-                            if i.KeyCode==Enum.KeyCode.Escape
-                            or i.KeyCode==Enum.KeyCode.Backspace then
+                            if i.KeyCode==
+                                Enum.KeyCode.Escape
+                            or i.KeyCode==
+                                Enum.KeyCode.Backspace then
 
                                 currentBind=nil
                                 Bind.Text="None"
 
-                            elseif i.UserInputType==Enum.UserInputType.Keyboard then
+                            elseif i.UserInputType==
+                                Enum.UserInputType.Keyboard then
 
                                 currentBind=i.KeyCode
                                 Bind.Text=i.KeyCode.Name
@@ -1395,31 +1659,39 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
                             else
 
                                 currentBind=i.UserInputType
-                                Bind.Text=i.UserInputType.Name:gsub(
-                                    "MouseButton",
-                                    "MB"
-                                )
+                                Bind.Text=
+                                    i.UserInputType.Name:gsub(
+                                        "MouseButton",
+                                        "MB"
+                                    )
                             end
 
                             UpdateRightRow()
                             listening=false
                         end
+
                     elseif not gp and currentBind then
                         local match=
                             (
-                                currentBind.EnumType==Enum.KeyCode
+                                currentBind.EnumType==
+                                    Enum.KeyCode
                                 and i.KeyCode==currentBind
                             )
                             or
                             (
-                                currentBind.EnumType==Enum.UserInputType
-                                and i.UserInputType==currentBind
+                                currentBind.EnumType==
+                                    Enum.UserInputType
+                                and i.UserInputType==
+                                    currentBind
                             )
 
                         if match then
                             if keybindMode then
                                 if armed then
-                                    SetActive(not active,true)
+                                    SetActive(
+                                        not active,
+                                        true
+                                    )
                                 end
                             else
                                 active=not active
@@ -1432,9 +1704,6 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
 
             --// INITIAL STATE
             if keybindMode then
-                --// The toggle is only an arming switch.
-                --// Never activate the actual feature just because
-                --// the GUI was created.
                 active=false
                 pcall(callback,false)
             else
@@ -1446,7 +1715,6 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
 
             RegisterElement(H,name,"Toggle")
 
-            --// CONFIG
             RegisterConfig(
                 name,
                 "Toggle",
@@ -1467,11 +1735,15 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
                         else
                             active=v
                         end
+
                     elseif type(v)=="table" then
                         armed=v.Enabled==true
 
                         if v.Keybind~=nil then
-                            local newBind=DeserializeBind(v.Keybind)
+                            local newBind=
+                                DeserializeBind(
+                                    v.Keybind
+                                )
 
                             if newBind then
                                 currentBind=newBind
@@ -1484,13 +1756,16 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
                                         )
                                 end
                             end
+
                         elseif v.Keybind==false then
                             currentBind=nil
                             Bind.Text="None"
                         end
 
                         if keybindMode then
-                            active=v.Active==true and armed
+                            active=
+                                v.Active==true
+                                and armed
                         else
                             if v.Active~=nil then
                                 active=v.Active==true
@@ -1522,7 +1797,12 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
         end
 
         --// SLIDER
-        function Elements:addSlider(name,minvalue,maxvalue,callback)
+        function Elements:addSlider(
+            name,
+            minvalue,
+            maxvalue,
+            callback
+        )
             local min=tonumber(minvalue) or 0
             local max=tonumber(maxvalue) or 100
             local value=min
@@ -1592,11 +1872,17 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
 
                 Num.Text=tostring(math.floor(value))
 
-                local p=max==min
+                local p=
+                    max==min
                     and 0
                     or (value-min)/(max-min)
 
-                Trail.Size=UDim2.new(p,0,1,0)
+                Trail.Size=UDim2.new(
+                    p,
+                    0,
+                    1,
+                    0
+                )
 
                 if callCallback~=false then
                     pcall(callback,value)
@@ -1612,33 +1898,46 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
 
                 local function Update(x)
                     local p=math.clamp(
-                        (x-B.AbsolutePosition.X)/B.AbsoluteSize.X,
+                        (x-B.AbsolutePosition.X)
+                        /B.AbsoluteSize.X,
                         0,
                         1
                     )
 
-                    Set(min+(max-min)*p,true)
+                    Set(
+                        min+(max-min)*p,
+                        true
+                    )
                 end
 
-                Update(Players.LocalPlayer:GetMouse().X)
+                Update(
+                    Players.LocalPlayer:GetMouse().X
+                )
             end)
 
             UIS.InputChanged:Connect(function(i)
                 if moving
-                and i.UserInputType==Enum.UserInputType.MouseMovement then
+                and i.UserInputType==
+                    Enum.UserInputType.MouseMovement then
 
                     local p=math.clamp(
-                        (i.Position.X-B.AbsolutePosition.X)/B.AbsoluteSize.X,
+                        (i.Position.X-B.AbsolutePosition.X)
+                        /B.AbsoluteSize.X,
                         0,
                         1
                     )
 
-                    Set(min+(max-min)*p,true)
+                    Set(
+                        min+(max-min)*p,
+                        true
+                    )
                 end
             end)
 
             UIS.InputEnded:Connect(function(i)
-                if i.UserInputType==Enum.UserInputType.MouseButton1 then
+                if i.UserInputType==
+                    Enum.UserInputType.MouseButton1 then
+
                     moving=false
                 end
             end)
@@ -1666,7 +1965,11 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
         end
 
         --// TEXTBOX
-        function Elements:addTextBox(name,default,callback)
+        function Elements:addTextBox(
+            name,
+            default,
+            callback
+        )
             local H=Instance.new("Frame")
             local C=Instance.new("UICorner")
             local T=Instance.new("TextLabel")
@@ -1726,7 +2029,12 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
         end
 
         --// DROPDOWN
-        function Elements:addDropdown(name,list,scrollsize,callback)
+        function Elements:addDropdown(
+            name,
+            list,
+            scrollsize,
+            callback
+        )
             local H=Instance.new("Frame")
             local C=Instance.new("UICorner")
             local T=Instance.new("TextLabel")
@@ -1864,11 +2172,13 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
                     OC.Parent=O
 
                     O.MouseEnter:Connect(function()
-                        O.BackgroundColor3=Color3.fromRGB(10,10,10)
+                        O.BackgroundColor3=
+                            Color3.fromRGB(10,10,10)
                     end)
 
                     O.MouseLeave:Connect(function()
-                        O.BackgroundColor3=Color3.fromRGB(15,15,15)
+                        O.BackgroundColor3=
+                            Color3.fromRGB(15,15,15)
                     end)
 
                     O.MouseButton1Click:Connect(function()
@@ -1884,9 +2194,9 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
 
             Build(list or {})
 
-            Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(
-                UpdateCanvasDropdown
-            )
+            Layout:GetPropertyChangedSignal(
+                "AbsoluteContentSize"
+            ):Connect(UpdateCanvasDropdown)
 
             RegisterElement(H,name,"Dropdown")
 
@@ -1897,7 +2207,9 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
                     return selected
                 end,
                 function(v)
-                    if v==nil then return end
+                    if v==nil then
+                        return
+                    end
 
                     for _,value in ipairs(values) do
                         if tostring(value)==tostring(v) then
@@ -1912,12 +2224,15 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
 
             return {
                 Object=H,
+
                 Refresh=function(newList)
                     Build(newList or {})
                 end,
+
                 Get=function()
                     return selected
                 end,
+
                 Set=function(v)
                     for _,value in ipairs(values) do
                         if tostring(value)==tostring(v) then
@@ -1932,6 +2247,9 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
         end
 
         task.defer(UpdateCanvas)
+
+        UpdateWindowLayout()
+
         return Elements
     end
 
@@ -1950,6 +2268,10 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
     local ConfigNameBox
     local ConfigDropdown
     local ConfigStatus
+    ConfigPage:addLabel(
+        "Configs",
+        "Save, load and manage your configurations"
+    )
 
     local _,InputBox=ConfigPage:addTextBox(
         "",
@@ -1963,6 +2285,7 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
     )
 
     ConfigNameBox=InputBox
+    
 
     ConfigPage:addButton(
         "Refresh",
@@ -1975,7 +2298,8 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
 
             if #files==0 then
                 ConfigStatus.Text="No configs found"
-                ConfigStatus.TextColor3=Color3.fromRGB(140,140,140)
+                ConfigStatus.TextColor3=
+                    Color3.fromRGB(140,140,140)
             else
                 ConfigStatus.Text=
                     "Found "
@@ -2029,7 +2353,9 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
     end
 
     local function SetStatus(text,good)
-        if not ConfigStatus then return end
+        if not ConfigStatus then
+            return
+        end
 
         ConfigStatus.Text=text
         ConfigStatus.TextColor3=
@@ -2047,9 +2373,10 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
         name=CleanName(name)
 
         local data={
-            Version=4,
+            Version=5,
             ConfigName=name,
-            Values={}
+            Values={},
+            Plugins={}
         }
 
         for _,entry in ipairs(ConfigEntries) do
@@ -2067,6 +2394,34 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
             end
         end
 
+        for _,entry in ipairs(PluginConfigEntries) do
+            if entry.Plugin then
+                local pluginName=entry.Plugin.Name
+
+                data.Plugins[pluginName]=
+                    data.Plugins[pluginName]
+                    or {
+                        File=entry.Plugin.File,
+                        Values={}
+                    }
+
+                local ok,value=pcall(entry.Get)
+
+                if ok then
+                    if typeof(value)=="Color3" then
+                        value=ColorToTable(value)
+                    end
+
+                    data.Plugins[pluginName].Values[
+                        entry.Name
+                    ]={
+                        Type=entry.Type,
+                        Value=value
+                    }
+                end
+            end
+        end
+
         local ok,json=pcall(function()
             return HttpService:JSONEncode(data)
         end)
@@ -2077,7 +2432,10 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
         end
 
         local success=pcall(function()
-            writefile(ConfigPath(name),json)
+            writefile(
+                ConfigPath(name),
+                json
+            )
         end)
 
         if not success then
@@ -2091,7 +2449,11 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
             ConfigNameBox.Text=name
         end
 
-        SetStatus("Saved: "..name,true)
+        SetStatus(
+            "Saved: "..name,
+            true
+        )
+
         return true
     end
 
@@ -2102,10 +2464,15 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
         end
 
         name=CleanName(name)
+
         local path=ConfigPath(name)
 
         if not isfile(path) then
-            SetStatus("Not found: "..name,false)
+            SetStatus(
+                "Not found: "..name,
+                false
+            )
+
             return false
         end
 
@@ -2114,7 +2481,11 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
         end)
 
         if not ok or not contents then
-            SetStatus("Failed to read",false)
+            SetStatus(
+                "Failed to read",
+                false
+            )
+
             return false
         end
 
@@ -2126,7 +2497,11 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
         or type(data)~="table"
         or type(data.Values)~="table" then
 
-            SetStatus("Invalid config",false)
+            SetStatus(
+                "Invalid config",
+                false
+            )
+
             return false
         end
 
@@ -2145,32 +2520,86 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
             end
         end
 
+        if type(data.Plugins)=="table" then
+            for _,entry in ipairs(PluginConfigEntries) do
+                if entry.Plugin then
+                    local pluginData=
+                        data.Plugins[
+                            entry.Plugin.Name
+                        ]
+
+                    if pluginData
+                    and type(pluginData.Values)=="table" then
+
+                        local saved=
+                            pluginData.Values[
+                                entry.Name
+                            ]
+
+                        if saved
+                        and saved.Value~=nil then
+
+                            local value=saved.Value
+
+                            if type(value)=="table"
+                            and value.__type=="Color3" then
+
+                                value=TableToColor(value)
+                            end
+
+                            pcall(
+                                entry.Set,
+                                value
+                            )
+                        end
+                    end
+                end
+            end
+        end
+
         CurrentConfig=name
 
         if ConfigNameBox then
             ConfigNameBox.Text=name
         end
 
-        SetStatus("Loaded: "..name,true)
+        SetStatus(
+            "Loaded: "..name,
+            true
+        )
+
         return true
     end
 
     local function DeleteConfig(name)
         if not SetupFolder() then
-            SetStatus("Filesystem unavailable",false)
+            SetStatus(
+                "Filesystem unavailable",
+                false
+            )
+
             return false
         end
 
         name=CleanName(name)
+
         local path=ConfigPath(name)
 
         if not isfile(path) then
-            SetStatus("Not found: "..name,false)
+            SetStatus(
+                "Not found: "..name,
+                false
+            )
+
             return false
         end
 
         if type(delfile)~="function" then
-            SetStatus("Delete unsupported",false)
+            SetStatus(
+                "Delete unsupported",
+                false
+            )
+
             return false
         end
 
@@ -2179,15 +2608,25 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
         end)
 
         if not ok then
-            SetStatus("Failed to delete",false)
+            SetStatus(
+                "Failed to delete",
+                false
+            )
+
             return false
         end
 
         if ConfigDropdown then
-            ConfigDropdown.Refresh(GetConfigFiles())
+            ConfigDropdown.Refresh(
+                GetConfigFiles()
+            )
         end
 
-        SetStatus("Deleted: "..name,true)
+        SetStatus(
+            "Deleted: "..name,
+            true
+        )
+
         return true
     end
 
@@ -2201,6 +2640,7 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
 
             if tostring(name):lower()=="name..."
             or tostring(name)=="" then
+
                 name=CurrentConfig
             end
 
@@ -2218,13 +2658,17 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
 
             if tostring(name):lower()=="name..."
             or tostring(name)=="" then
+
                 name=CurrentConfig
             end
 
             SaveConfig(name)
 
             if ConfigDropdown then
-                ConfigDropdown.Refresh(GetConfigFiles())
+                ConfigDropdown.Refresh(
+                    GetConfigFiles()
+                )
+
                 ConfigDropdown.Set(name)
             end
         end
@@ -2236,7 +2680,9 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
         function(v)
             AutoLoad=v
 
-            if not SetupFolder() then return end
+            if not SetupFolder() then
+                return
+            end
 
             local name=
                 ConfigNameBox
@@ -2245,6 +2691,7 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
 
             if tostring(name):lower()=="name..."
             or tostring(name)=="" then
+
                 name=CurrentConfig
             end
 
@@ -2272,6 +2719,7 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
 
             if tostring(name):lower()=="name..."
             or tostring(name)=="" then
+
                 name=CurrentConfig
             end
 
@@ -2279,59 +2727,453 @@ ToggleList.Size=UDim2.new(1,-20,1,-40)
         end
     )
 
-    task.spawn(function()
-        if not SetupFolder() then return end
+    --// PLUGIN SECTION
+ConfigPage:addLabel(
+    "Plugins",
+    "Load Lua plugins from Skido/skido_plugin"
+)
 
-        local settingsPath=ConfigFolder.."/settings.json"
+local PluginDropdown
+local PluginStatus
 
-        if isfile(settingsPath) then
-            local ok,contents=pcall(function()
-                return readfile(settingsPath)
-            end)
+local function RefreshPluginDropdown()
+    local files=GetPluginFiles()
 
-            if ok and contents then
-                local decodedOk,data=pcall(function()
-                    return HttpService:JSONDecode(contents)
+    if PluginDropdown then
+        PluginDropdown.Refresh(files)
+    end
+
+    if PluginStatus then
+        if #files==0 then
+            PluginStatus.Text="No .lua plugins found"
+            PluginStatus.TextColor3=Color3.fromRGB(140,140,140)
+        else
+            PluginStatus.Text=
+                "Found "
+                ..#files
+                .." plugin"
+                ..(#files==1 and "" or "s")
+
+            PluginStatus.TextColor3=
+                Color3.fromRGB(137,246,255)
+        end
+    end
+end
+
+PluginDropdown=ConfigPage:addDropdown(
+    "",
+    {},
+    6,
+    function()
+    end
+)
+
+ConfigPage:addButton(
+    "Refresh Plugins",
+    function()
+        RefreshPluginDropdown()
+    end
+)
+
+do
+    local H=Instance.new("Frame")
+    local C=Instance.new("UICorner")
+    local T=Instance.new("TextLabel")
+
+    H.Parent=ConfigPage.__Page
+    H.BackgroundColor3=Color3.fromRGB(17,17,17)
+    H.BorderSizePixel=0
+    H.Size=UDim2.new(0,304,0,30)
+
+    C.CornerRadius=UDim.new(0,5)
+    C.Parent=H
+
+    T.Parent=H
+    T.BackgroundTransparency=1
+    T.Position=UDim2.new(0,7,0,0)
+    T.Size=UDim2.new(1,-14,1,0)
+    T.Font=Enum.Font.GothamSemibold
+    T.Text="Plugin loader ready"
+    T.TextColor3=Color3.fromRGB(140,140,140)
+    T.TextSize=9
+    T.TextXAlignment=Enum.TextXAlignment.Left
+    T.TextWrapped=true
+
+    PluginStatus=T
+end
+
+--// PLUGIN EXECUTION
+local function ResolvePluginResult(result)
+    local current=result
+
+    for i=1,8 do
+        if type(current)=="table" then
+            if type(current.Tabs)=="table" then
+                return current
+            end
+
+            if type(current.Plugin)=="table" then
+                current=current.Plugin
+            elseif type(current.Data)=="table" then
+                current=current.Data
+            elseif type(current.Module)=="table" then
+                current=current.Module
+            else
+                return nil,"Plugin did not return a valid plugin table"
+            end
+
+        elseif type(current)=="function" then
+            local ok,nextResult=pcall(current)
+
+            if not ok then
+                return nil,tostring(nextResult)
+            end
+
+            current=nextResult
+        else
+            return nil,"Plugin returned "..type(current)
+        end
+    end
+
+    return nil,"Plugin wrapper depth exceeded"
+end
+
+local function ExecutePluginSource(source,fileName)
+    if type(loadstring)~="function" then
+        return nil,"loadstring unavailable"
+    end
+
+    local ok,chunk=pcall(function()
+        return loadstring(
+            source,
+            "@"..tostring(fileName)
+        )
+    end)
+
+    if not ok or type(chunk)~="function" then
+        return nil,tostring(chunk)
+    end
+
+    local okRun,result=pcall(chunk)
+
+    if not okRun then
+        return nil,tostring(result)
+    end
+
+    return ResolvePluginResult(result)
+end
+
+--// PLUGIN LOADER
+local function LoadPlugin(path)
+    if type(path)~="string" or path=="" then
+        if PluginStatus then
+            PluginStatus.Text="Select a plugin first"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    local fileKey=tostring(path)
+
+    if LoadedPlugins[fileKey] then
+        if PluginStatus then
+            PluginStatus.Text="Already loaded: "..PluginFileName(fileKey)
+            PluginStatus.TextColor3=Color3.fromRGB(255,190,90)
+        end
+        return false
+    end
+
+    if type(isfile)~="function" or not isfile(fileKey) then
+        if PluginStatus then
+            PluginStatus.Text="Plugin file not found"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    if type(readfile)~="function" then
+        if PluginStatus then
+            PluginStatus.Text="readfile unavailable"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    if type(loadstring)~="function" then
+        if PluginStatus then
+            PluginStatus.Text="loadstring unavailable"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    local okRead,source=pcall(function()
+        return readfile(fileKey)
+    end)
+
+    if not okRead or type(source)~="string" or source=="" then
+        if PluginStatus then
+            PluginStatus.Text="Failed to read plugin"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    local plugin,err=ExecutePluginSource(
+        source,
+        PluginFileName(fileKey)
+    )
+
+    if not plugin then
+        if PluginStatus then
+            PluginStatus.Text="Plugin error: "..tostring(err)
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    if type(plugin.Tabs)~="table" then
+        if PluginStatus then
+            PluginStatus.Text="Plugin has no Tabs table"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    local pluginName=tostring(
+        plugin.Name or PluginFileName(fileKey)
+    )
+
+    local pluginInfo={
+        Name=pluginName,
+        File=fileKey,
+        Plugin=plugin,
+        Tabs={},
+        Entries={}
+    }
+
+    LoadedPlugins[fileKey]=pluginInfo
+    CurrentPlugin=pluginInfo
+
+    local createdTabs=0
+    local errors={}
+
+    for _,tabInfo in ipairs(plugin.Tabs) do
+        if type(tabInfo)=="table"
+        and type(tabInfo.Name)=="string" then
+
+            local requestedName=tostring(tabInfo.Name)
+
+            if requestedName:lower()~="config"
+            and not PageTabs[requestedName] then
+
+                local pageOk,page=pcall(function()
+                    return PageYep:addPage(
+                        requestedName,
+                        tabInfo.ScrollSize or 6,
+                        false,
+                        tabInfo.ElementSpacing or 6
+                    )
                 end)
 
-                if decodedOk and type(data)=="table" then
-                    if type(data.Config)=="string"
-                    and data.Config~="" then
-                        CurrentConfig=CleanName(data.Config)
+                if pageOk and page then
+                    page.__Tab.LayoutOrder=PluginTabOrder
+                    PluginTabOrder+=1
+
+                    table.insert(
+                        pluginInfo.Tabs,
+                        page
+                    )
+
+                    createdTabs+=1
+
+                    if type(tabInfo.Elements)=="function" then
+                        local success,elementErr=pcall(
+                            tabInfo.Elements,
+                            page,
+                            plugin
+                        )
+
+                        if not success then
+                            table.insert(
+                                errors,
+                                requestedName..": "..tostring(elementErr)
+                            )
+                        end
                     end
+                else
+                    table.insert(
+                        errors,
+                        requestedName..": "..tostring(page)
+                    )
+                end
+            end
+        end
+    end
 
-                    AutoLoad=data.AutoLoad==true
+    CurrentPlugin=nil
 
-                    if ConfigNameBox then
-                        ConfigNameBox.Text=CurrentConfig
+    UpdateWindowLayout()
+
+    if createdTabs==0 then
+        LoadedPlugins[fileKey]=nil
+
+        if PluginStatus then
+            PluginStatus.Text="Plugin created no tabs"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+
+        return false
+    end
+
+    --// Show first newly loaded plugin tab
+    if pluginInfo.Tabs[1] then
+        local first=pluginInfo.Tabs[1]
+
+        if first.__Tab and first.__Tab.Parent then
+            first.__Tab:Activate()
+            first.__Page.Visible=true
+
+            for _,page in ipairs(Folder:GetChildren()) do
+                if page:IsA("ScrollingFrame")
+                and page~=first.__Page then
+                    page.Visible=false
+                end
+            end
+
+            for _,tab in pairs(PageTabs) do
+                if tab:IsA("GuiButton") then
+                    if tab==first.__Tab then
+                        tab.TextTransparency=0
+                        tab.BackgroundColor3=Color3.fromRGB(25,25,25)
+                    else
+                        tab.TextTransparency=.3
+                        tab.BackgroundColor3=Color3.fromRGB(15,15,15)
                     end
                 end
             end
         end
+    end
 
-        task.wait(.15)
-
-        if ConfigDropdown then
-            ConfigDropdown.Refresh(GetConfigFiles())
+    if PluginStatus then
+        if #errors>0 then
+            PluginStatus.Text=
+                "Loaded: "
+                ..pluginName
+                .." ("
+                ..createdTabs
+                .." tab"
+                ..(createdTabs==1 and "" or "s")
+                ..", "
+                ..#errors
+                .." error"
+                ..(#errors==1 and "" or "s")
+                ..")"
+        else
+            PluginStatus.Text=
+                "Loaded: "
+                ..pluginName
+                .." ("
+                ..createdTabs
+                .." tab"
+                ..(createdTabs==1 and "" or "s")
+                ..")"
         end
 
-        if AutoLoad then
-            task.wait(.25)
-            LoadConfig(CurrentConfig)
+        PluginStatus.TextColor3=Color3.fromRGB(137,246,255)
+    end
+
+    return true
+end
+
+ConfigPage:addButton(
+    "Load Plugin",
+    function()
+        local selected=
+            PluginDropdown
+            and PluginDropdown.Get()
+
+        if not selected then
+            if PluginStatus then
+                PluginStatus.Text="Select a plugin first"
+                PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+            end
+            return
         end
-    end)
 
-    task.defer(function()
-        task.wait(.1)
+        LoadPlugin(tostring(selected))
+    end
+)
 
-        if ConfigDropdown then
-            ConfigDropdown.Refresh(GetConfigFiles())
+--// INITIAL SETTINGS
+task.spawn(function()
+    if not SetupFolder() then
+        return
+    end
+
+    local settingsPath=ConfigFolder.."/settings.json"
+
+    if isfile(settingsPath) then
+        local ok,contents=pcall(function()
+            return readfile(settingsPath)
+        end)
+
+        if ok and contents then
+            local decodedOk,data=pcall(function()
+                return HttpService:JSONDecode(contents)
+            end)
+
+            if decodedOk and type(data)=="table" then
+                if type(data.Config)=="string"
+                and data.Config~="" then
+                    CurrentConfig=CleanName(data.Config)
+                end
+
+                AutoLoad=data.AutoLoad==true
+
+                if ConfigNameBox then
+                    ConfigNameBox.Text=CurrentConfig
+                end
+            end
         end
+    end
 
-        UpdateTogglePanel()
-    end)
+    task.wait(.15)
 
-    return PageYep
+    if ConfigDropdown then
+        ConfigDropdown.Refresh(
+            GetConfigFiles()
+        )
+    end
+
+    if PluginDropdown then
+        RefreshPluginDropdown()
+    end
+
+    if AutoLoad then
+        task.wait(.25)
+        LoadConfig(CurrentConfig)
+    end
+end)
+
+task.defer(function()
+    task.wait(.1)
+
+    if ConfigDropdown then
+        ConfigDropdown.Refresh(
+            GetConfigFiles()
+        )
+    end
+
+    if PluginDropdown then
+        RefreshPluginDropdown()
+    end
+
+    UpdateTogglePanel()
+    UpdateWindowLayout()
+end)
+
+return PageYep
 end
 
 return Library
