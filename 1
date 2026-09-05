@@ -441,8 +441,8 @@ function Library:CreateWindow(windowname,windowinfo)
     TogglePanel.Parent=Gui
     TogglePanel.BackgroundColor3=Color3.fromRGB(15,15,15)
     TogglePanel.BorderSizePixel=0
-    TogglePanel.Position=UDim2.new(0,12,0,.35)
-    TogglePanel.Size=UDim2.new(0,175,0,38)
+    TogglePanel.Position=UDim2.new(0,12,0,0.5)
+    TogglePanel.Size=UDim2.new(0,210,0,45)
     TogglePanel.Active=true
     TogglePanel.Visible=true
     TogglePanel.ZIndex=200
@@ -456,19 +456,19 @@ function Library:CreateWindow(windowname,windowinfo)
 
     ToggleTitle.Parent=TogglePanel
     ToggleTitle.BackgroundTransparency=1
-    ToggleTitle.Position=UDim2.new(0,10,0,5)
-    ToggleTitle.Size=UDim2.new(1,-20,0,20)
+    ToggleTitle.Position=UDim2.new(0,12,0,6)
+    ToggleTitle.Size=UDim2.new(1,-24,0,22)
     ToggleTitle.Font=Enum.Font.GothamSemibold
     ToggleTitle.Text="Active Toggles"
     ToggleTitle.TextColor3=Color3.fromRGB(137,246,255)
-    ToggleTitle.TextSize=10
+    ToggleTitle.TextSize=12
     ToggleTitle.TextXAlignment=Enum.TextXAlignment.Left
     ToggleTitle.ZIndex=201
 
     ToggleList.Parent=TogglePanel
     ToggleList.BackgroundTransparency=1
-    ToggleList.Position=UDim2.new(0,8,0,30)
-    ToggleList.Size=UDim2.new(1,-16,1,-35)
+    ToggleList.Position=UDim2.new(0,10,0,34)
+    ToggleList.Size=UDim2.new(1,-20,1,-40)
     ToggleList.ZIndex=201
 
     ToggleLayout.Parent=ToggleList
@@ -487,13 +487,13 @@ function Library:CreateWindow(windowname,windowinfo)
             end
         end
 
-        local height=38
+        local height=45
 
         if count>0 then
-            height=38+(count*25)+8
+            height=45+(count*29)+8
         end
 
-        TogglePanel.Size=UDim2.new(0,175,0,height)
+        TogglePanel.Size=UDim2.new(0,210,0,height)
     end
 
     --// PANEL DRAG ONLY
@@ -1031,7 +1031,7 @@ function Library:CreateWindow(windowname,windowinfo)
                 Row.Parent=ToggleList
                 Row.BackgroundColor3=Color3.fromRGB(20,20,20)
                 Row.BorderSizePixel=0
-                Row.Size=UDim2.new(1,0,0,21)
+                Row.Size=UDim2.new(1,0,0,24)
                 Row.Font=Enum.Font.GothamSemibold
                 Row.TextColor3=Color3.new(1,1,1)
                 Row.TextSize=8
