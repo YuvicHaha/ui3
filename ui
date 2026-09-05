@@ -1,4 +1,4 @@
---// NOVA UI LIBRARY
+
 local function DestroyYep()
     for i=1,69 do
         local g=game.CoreGui:FindFirstChild("fu8rj82n")
@@ -13,7 +13,7 @@ local UIS=game:GetService("UserInputService")
 local Players=game:GetService("Players")
 local HttpService=game:GetService("HttpService")
 
-local ConfigFolder="NOVA"
+local ConfigFolder="Skido"
 
 local function HasFS()
     return type(isfile)=="function"
