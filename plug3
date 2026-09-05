@@ -2268,6 +2268,10 @@ function Library:CreateWindow(windowname,windowinfo)
     local ConfigNameBox
     local ConfigDropdown
     local ConfigStatus
+    ConfigPage:addLabel(
+        "Configs",
+        "Save, load and manage your configurations"
+    )
 
     local _,InputBox=ConfigPage:addTextBox(
         "",
@@ -2281,12 +2285,7 @@ function Library:CreateWindow(windowname,windowinfo)
     )
 
     ConfigNameBox=InputBox
-
-    --// CONFIG SECTION
-    ConfigPage:addLabel(
-        "Configs",
-        "Save, load and manage your configurations"
-    )
+    
 
     ConfigPage:addButton(
         "Refresh",
