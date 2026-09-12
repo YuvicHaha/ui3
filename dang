@@ -1,0 +1,1879 @@
+local function DestroyYep()
+    for i=1,69 do
+        local g=game.CoreGui:FindFirstChild("fu8rj82n")
+        if g then g:Destroy() end
+    end
+end
+DestroyYep()
+task.wait(.069)
+
+local Library={}
+local UIS=game:GetService("UserInputService")
+local Players=game:GetService("Players")
+local HttpService=game:GetService("HttpService")
+
+local ConfigFolder="Skido"
+local PluginFolder=ConfigFolder.."/skido_plugin"
+
+local function HasFS()
+    return type(isfile)=="function"
+    and type(readfile)=="function"
+    and type(writefile)=="function"
+end
+
+local function SetupFolder()
+    if not HasFS() then return false end
+
+    if type(isfolder)=="function"
+    and type(makefolder)=="function" then
+
+        if not isfolder(ConfigFolder) then
+            pcall(makefolder,ConfigFolder)
+        end
+    end
+
+    return true
+end
+
+local function SetupPluginFolder()
+    if not SetupFolder() then
+        return false
+    end
+
+    if type(isfolder)=="function"
+    and type(makefolder)=="function" then
+
+        if not isfolder(PluginFolder) then
+            pcall(makefolder,PluginFolder)
+        end
+    end
+
+    return true
+end
+
+local function CleanName(name)
+    name=tostring(name or "")
+    name=name:gsub("[^%w_%- ]","")
+    name=name:gsub("^%s+","")
+    name=name:gsub("%s+$","")
+
+    return name~="" and name or "Default"
+end
+
+local function ConfigPath(name)
+    return ConfigFolder.."/"..CleanName(name)..".json"
+end
+
+local function ColorToTable(c)
+    if typeof(c)~="Color3" then
+        return nil
+    end
+
+    return {
+        __type="Color3",
+        R=c.R,
+        G=c.G,
+        B=c.B
+    }
+end
+
+local function TableToColor(v)
+    if type(v)~="table"
+    or v.__type~="Color3" then
+        return nil
+    end
+
+    return Color3.new(
+        tonumber(v.R) or 1,
+        tonumber(v.G) or 1,
+        tonumber(v.B) or 1
+    )
+end
+
+local function SerializeBind(bind)
+    if not bind then
+        return nil
+    end
+
+    if bind.EnumType==Enum.KeyCode then
+        return "KeyCode|"..bind.Name
+    end
+
+    if bind.EnumType==Enum.UserInputType then
+        return "UserInputType|"..bind.Name
+    end
+
+    return nil
+end
+
+local function DeserializeBind(value)
+    if type(value)~="string" then
+        return nil
+    end
+
+    local typ,name=value:match("^([^|]+)|(.+)$")
+
+    if typ=="KeyCode" then
+        local ok,result=pcall(function()
+            return Enum.KeyCode[name]
+        end)
+
+        if ok and result then
+            return result
+        end
+
+    elseif typ=="UserInputType" then
+        local ok,result=pcall(function()
+            return Enum.UserInputType[name]
+        end)
+
+        if ok and result then
+            return result
+        end
+    end
+
+    return nil
+end
+
+local function GetConfigFiles()
+    local files={}
+
+    if not SetupFolder()
+    or type(listfiles)~="function" then
+        return files
+    end
+
+    local ok,result=pcall(function()
+        return listfiles(ConfigFolder)
+    end)
+
+    if not ok or type(result)~="table" then
+        return files
+    end
+
+    for _,path in ipairs(result) do
+        local filename=tostring(path):match("([^/\\]+)%.json$")
+
+        if filename and filename~="settings" then
+            table.insert(files,filename)
+        end
+    end
+
+    table.sort(files,function(a,b)
+        return a:lower()<b:lower()
+    end)
+
+    return files
+end
+
+local function GetPluginFiles()
+    local files={}
+
+    if not SetupPluginFolder()
+    or type(listfiles)~="function" then
+        return files
+    end
+
+    local ok,result=pcall(function()
+        return listfiles(PluginFolder)
+    end)
+
+    if not ok or type(result)~="table" then
+        return files
+    end
+
+    for _,path in ipairs(result) do
+        path=tostring(path)
+
+        if lower:sub(-4)==".lua" or lower:sub(-4)==".txt" then
+            table.insert(files,path)
+        end
+    end
+
+    table.sort(files,function(a,b)
+        return a:lower()<b:lower()
+    end)
+
+    return files
+end
+
+local function PluginFileName(path)
+    return tostring(path):match("([^/\\]+)%.[^%.]+$") or tostring(path)
+end
+
+function Library:CreateWindow(windowname,windowinfo)
+    local Gui=Instance.new("ScreenGui")
+    local Frame=Instance.new("Frame")
+    local Scale=Instance.new("UIScale")
+    local Corner=Instance.new("UICorner")
+    local Dash=Instance.new("Frame")
+    local DashCorner=Instance.new("UICorner")
+    local Tabs=Instance.new("ScrollingFrame")
+    local TabLayout=Instance.new("UIListLayout")
+    local Pages=Instance.new("Frame")
+    local PagesCorner=Instance.new("UICorner")
+    local Folder=Instance.new("Folder")
+    local Title=Instance.new("TextLabel")
+    local ResetButton=Instance.new("TextButton")
+    local Credits=Instance.new("TextButton")
+    local CreditIcon=Instance.new("ImageLabel")
+    local CreditText=Instance.new("TextLabel")
+
+    Gui.Name="fu8rj82n"
+    Gui.Parent=game.CoreGui
+    Gui.ResetOnSpawn=false
+    Gui.ZIndexBehavior=Enum.ZIndexBehavior.Global
+
+    Frame.Parent=Gui
+    Frame.BackgroundColor3=Color3.fromRGB(20,20,20)
+    Frame.BorderSizePixel=0
+    Frame.Position=UDim2.new(.27,0,.29,0)
+    Frame.Size=UDim2.new(0,455,0,300)
+    Frame.Active=true
+
+    Scale.Scale=1.1
+    Scale.Parent=Frame
+
+    Corner.CornerRadius=UDim.new(0,7)
+    Corner.Parent=Frame
+
+    Dash.Parent=Frame
+    Dash.BackgroundColor3=Color3.fromRGB(15,15,15)
+    Dash.BorderSizePixel=0
+    Dash.Position=UDim2.new(.018,0,.168,0)
+    Dash.Size=UDim2.new(0,115,0,238)
+
+    DashCorner.CornerRadius=UDim.new(0,6)
+    DashCorner.Parent=Dash
+
+    Tabs.Parent=Dash
+Tabs.BackgroundTransparency=1
+Tabs.BorderSizePixel=0
+Tabs.Position=UDim2.new(.03,0,.035,0)
+Tabs.Size=UDim2.new(0,108,1,-18)
+
+Tabs.CanvasSize=UDim2.new(0,0,0,0)
+Tabs.ScrollBarThickness=3
+Tabs.ScrollBarImageColor3=Color3.fromRGB(70,70,70)
+Tabs.ScrollBarImageTransparency=0.15
+
+Tabs.ScrollingDirection=Enum.ScrollingDirection.Y
+Tabs.VerticalScrollBarInset=Enum.ScrollBarInset.ScrollBar
+
+Tabs.AutomaticCanvasSize=Enum.AutomaticSize.Y
+
+Tabs.ElasticBehavior=Enum.ElasticBehavior.WhenScrollable
+
+Tabs.ClipsDescendants=true
+
+TabLayout.Parent=Tabs
+TabLayout.HorizontalAlignment=Enum.HorizontalAlignment.Center
+TabLayout.SortOrder=Enum.SortOrder.LayoutOrder
+TabLayout.Padding=UDim.new(0,6)
+
+    Pages.Parent=Frame
+    Pages.BackgroundColor3=Color3.fromRGB(15,15,15)
+    Pages.BorderSizePixel=0
+    Pages.Position=UDim2.new(.277,0,.168,0)
+    Pages.Size=UDim2.new(0,319,0,238)
+
+    PagesCorner.CornerRadius=UDim.new(0,6)
+    PagesCorner.Parent=Pages
+
+    Folder.Parent=Pages
+    Folder.Name="PageFolder"
+
+    Title.Parent=Frame
+    Title.BackgroundTransparency=1
+    Title.Position=UDim2.new(.043,0,.028,0)
+    Title.Size=UDim2.new(0,112,0,33)
+    Title.Font=Enum.Font.GothamSemibold
+    Title.Text=windowname or "UI"
+    Title.TextColor3=Color3.new(1,1,1)
+    Title.TextSize=14
+    Title.TextXAlignment=Enum.TextXAlignment.Left
+
+    ResetButton.Parent=Frame
+    ResetButton.BackgroundColor3=Color3.fromRGB(30,30,30)
+    ResetButton.BorderSizePixel=0
+    ResetButton.Position=UDim2.new(.30,0,.05,0)
+    ResetButton.Size=UDim2.new(0,40,0,22)
+    ResetButton.Font=Enum.Font.GothamSemibold
+    ResetButton.Text="reset"
+    ResetButton.TextColor3=Color3.fromRGB(185,185,185)
+    ResetButton.TextSize=9
+    ResetButton.AutoButtonColor=false
+    ResetButton.ZIndex=50
+    local ResetCorner=Instance.new("UICorner")
+    ResetCorner.CornerRadius=UDim.new(0,5)
+    ResetCorner.Parent=ResetButton
+    local ResetStroke=Instance.new("UIStroke")
+    ResetStroke.Color=Color3.fromRGB(45,45,45)
+    ResetStroke.Transparency=.15
+    ResetStroke.Parent=ResetButton
+
+    --// SEARCH
+    local SearchBox=Instance.new("TextBox")
+    local SearchCorner=Instance.new("UICorner")
+    local SearchStroke=Instance.new("UIStroke")
+
+    SearchBox.Parent=Frame
+    SearchBox.BackgroundColor3=Color3.fromRGB(15,15,15)
+    SearchBox.BorderSizePixel=0
+    SearchBox.Position=UDim2.new(.40,0,.045,0)
+    SearchBox.Size=UDim2.new(0,150,0,24)
+    SearchBox.Font=Enum.Font.GothamSemibold
+    SearchBox.PlaceholderText="Search..."
+    SearchBox.PlaceholderColor3=Color3.fromRGB(100,100,100)
+    SearchBox.Text=""
+    SearchBox.TextColor3=Color3.new(1,1,1)
+    SearchBox.TextSize=10
+    SearchBox.ClearTextOnFocus=false
+    SearchBox.TextXAlignment=Enum.TextXAlignment.Left
+    SearchBox.ZIndex=50
+
+    SearchCorner.CornerRadius=UDim.new(0,5)
+    SearchCorner.Parent=SearchBox
+
+    SearchStroke.Color=Color3.fromRGB(35,35,35)
+    SearchStroke.Transparency=.15
+    SearchStroke.Parent=SearchBox
+
+    local SearchPadding=Instance.new("UIPadding")
+    SearchPadding.PaddingLeft=UDim.new(0,8)
+    SearchPadding.PaddingRight=UDim.new(0,8)
+    SearchPadding.Parent=SearchBox
+
+    --// CREDITS
+    Credits.Parent=Frame
+    Credits.BackgroundTransparency=1
+    Credits.Position=UDim2.new(.885,0,.05,0)
+    Credits.Size=UDim2.new(0,38,0,22)
+    Credits.AutoButtonColor=false
+    Credits.Text=""
+
+    CreditIcon.Parent=Credits
+    CreditIcon.BackgroundTransparency=1
+    CreditIcon.Size=UDim2.new(0,38,0,21)
+    CreditIcon.Image="rbxassetid://4384401360"
+    CreditIcon.ScaleType=Enum.ScaleType.Fit
+
+    CreditText.Parent=Credits
+    CreditText.BackgroundTransparency=1
+    CreditText.Position=UDim2.new(1.45,0,-.32,0)
+    CreditText.Size=UDim2.new(0,145,0,33)
+    CreditText.Font=Enum.Font.GothamSemibold
+    CreditText.Text=windowinfo or "UI Made by Bytes#0001"
+    CreditText.TextColor3=Color3.new(1,1,1)
+    CreditText.TextSize=9
+    CreditText.TextTransparency=1
+
+    CreditIcon.MouseEnter:Connect(function()
+    if _G.NebulaResetShortcuts then _G.NebulaResetShortcuts() end
+        CreditText.TextTransparency=0
+        CreditIcon.ImageColor3=Color3.fromRGB(137,246,255)
+    end)
+
+    CreditIcon.MouseLeave:Connect(function()
+        CreditText.TextTransparency=1
+        CreditIcon.ImageColor3=Color3.new(1,1,1)
+    end)
+
+    --// MAIN DRAG
+    local dragging=false
+    local dragInput
+    local dragStart
+    local startPos
+
+    Frame.InputBegan:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1
+        or i.UserInputType==Enum.UserInputType.Touch then
+
+            if SearchBox:IsFocused() then
+                return
+            end
+            if Frame:GetAttribute("Resizing") then
+                return
+            end
+
+            dragging=true
+            dragStart=i.Position
+            startPos=Frame.Position
+
+            i.Changed:Connect(function()
+                if i.UserInputState==Enum.UserInputState.End then
+                    dragging=false
+                end
+            end)
+        end
+    end)
+
+    Frame.InputChanged:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseMovement
+        or i.UserInputType==Enum.UserInputType.Touch then
+            dragInput=i
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(i)
+        if i==dragInput and dragging then
+            local d=i.Position-dragStart
+
+            Frame.Position=UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset+d.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset+d.Y
+            )
+        end
+    end)
+
+    SearchBox.Focused:Connect(function()
+        dragging=false
+    end)
+
+    --// FOUR CORNER RESIZE
+    Frame:SetAttribute("Resizing",false)
+    do
+        local resizing=false
+        local resizeCorner=nil
+        local resizeInput=nil
+        local resizeStart=nil
+        local resizeStartSize=nil
+        local resizeStartPos=nil
+
+        local function MakeHandle(name,anchor,position,cursor)
+            local Handle=Instance.new("TextButton")
+            Handle.Name=name
+            Handle.Parent=Frame
+            Handle.BackgroundTransparency=1
+            Handle.BorderSizePixel=0
+            Handle.AnchorPoint=anchor
+            Handle.Position=position
+            Handle.Size=UDim2.new(0,14,0,14)
+            Handle.Text=""
+            Handle.AutoButtonColor=false
+            Handle.ZIndex=100
+
+            Handle.InputBegan:Connect(function(i)
+                if i.UserInputType==Enum.UserInputType.MouseButton1
+                or i.UserInputType==Enum.UserInputType.Touch then
+                    resizing=true
+                    Frame:SetAttribute("Resizing",true)
+                    resizeCorner=name
+                    resizeStart=i.Position
+                    resizeStartSize=Frame.AbsoluteSize
+                    resizeStartPos=Frame.Position
+
+                    i.Changed:Connect(function()
+                        if i.UserInputState==Enum.UserInputState.End then
+                            resizing=false
+                            resizeCorner=nil
+                            Frame:SetAttribute("Resizing",false)
+                        end
+                    end)
+                end
+            end)
+
+            Handle.InputChanged:Connect(function(i)
+                if i.UserInputType==Enum.UserInputType.MouseMovement
+                or i.UserInputType==Enum.UserInputType.Touch then
+                    resizeInput=i
+                end
+            end)
+
+            return Handle
+        end
+
+        MakeHandle(
+            "ResizeTopLeft",
+            Vector2.new(0,0),
+            UDim2.new(0,0,0,0)
+        )
+
+        MakeHandle(
+            "ResizeTopRight",
+            Vector2.new(1,0),
+            UDim2.new(1,0,0,0)
+        )
+
+        MakeHandle(
+            "ResizeBottomLeft",
+            Vector2.new(0,1),
+            UDim2.new(0,0,1,0)
+        )
+
+        MakeHandle(
+            "ResizeBottomRight",
+            Vector2.new(1,1),
+            UDim2.new(1,0,1,0)
+        )
+
+        UIS.InputChanged:Connect(function(i)
+            if not resizing or i~=resizeInput then
+                return
+            end
+
+            local d=i.Position-resizeStart
+            local minX=455
+            local minY=300
+            local maxX=900
+            local maxY=650
+
+            local width=resizeStartSize.X
+            local height=resizeStartSize.Y
+            local pos=resizeStartPos
+
+            if resizeCorner=="ResizeTopLeft" then
+                width=math.clamp(resizeStartSize.X-d.X,minX,maxX)
+                height=math.clamp(resizeStartSize.Y-d.Y,minY,maxY)
+                pos=UDim2.new(
+                    resizeStartPos.X.Scale,
+                    resizeStartPos.X.Offset+d.X,
+                    resizeStartPos.Y.Scale,
+                    resizeStartPos.Y.Offset+d.Y
+                )
+            elseif resizeCorner=="ResizeTopRight" then
+                width=math.clamp(resizeStartSize.X+d.X,minX,maxX)
+                height=math.clamp(resizeStartSize.Y-d.Y,minY,maxY)
+                pos=UDim2.new(
+                    resizeStartPos.X.Scale,
+                    resizeStartPos.X.Offset,
+                    resizeStartPos.Y.Scale,
+                    resizeStartPos.Y.Offset+d.Y
+                )
+            elseif resizeCorner=="ResizeBottomLeft" then
+                width=math.clamp(resizeStartSize.X-d.X,minX,maxX)
+                height=math.clamp(resizeStartSize.Y+d.Y,minY,maxY)
+                pos=UDim2.new(
+                    resizeStartPos.X.Scale,
+                    resizeStartPos.X.Offset+d.X,
+                    resizeStartPos.Y.Scale,
+                    resizeStartPos.Y.Offset
+                )
+            else
+                width=math.clamp(resizeStartSize.X+d.X,minX,maxX)
+                height=math.clamp(resizeStartSize.Y+d.Y,minY,maxY)
+            end
+
+            Frame.Position=pos
+            Frame.Size=UDim2.new(0,width,0,height)
+        end)
+    end
+
+    --// MINIMIZE
+    local Min=Instance.new("TextButton")
+    local MinCorner=Instance.new("UICorner")
+
+    Min.Parent=Frame
+    Min.BackgroundColor3=Color3.fromRGB(30,30,30)
+    Min.Position=UDim2.new(.78,0,.05,0)
+    Min.Size=UDim2.new(0,30,0,22)
+    Min.Font=Enum.Font.GothamBold
+    Min.Text="-"
+    Min.TextColor3=Color3.new(1,1,1)
+    Min.TextSize=14
+    Min.ZIndex=50
+
+    MinCorner.CornerRadius=UDim.new(0,5)
+    MinCorner.Parent=Min
+
+    --// FLOAT
+    local Float=Instance.new("TextButton")
+    local FloatCorner=Instance.new("UICorner")
+    local FloatStroke=Instance.new("UIStroke")
+
+    Float.Parent=Gui
+    Float.BackgroundColor3=Color3.fromRGB(15,15,15)
+    Float.Position=UDim2.new(.05,0,.2,0)
+    Float.Size=UDim2.new(0,65,0,35)
+    Float.Font=Enum.Font.GothamBold
+    Float.Text="Skido"
+    Float.TextColor3=Color3.fromRGB(137,246,255)
+    Float.TextSize=12
+    Float.Visible=false
+    Float.Active=true
+
+    FloatCorner.CornerRadius=UDim.new(0,6)
+    FloatCorner.Parent=Float
+
+    FloatStroke.Color=Color3.fromRGB(35,35,35)
+    FloatStroke.Parent=Float
+
+    local fd,fi,fs,fp
+
+    Float.InputBegan:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1
+        or i.UserInputType==Enum.UserInputType.Touch then
+
+            fd=true
+            fs=i.Position
+            fp=Float.Position
+
+            i.Changed:Connect(function()
+                if i.UserInputState==Enum.UserInputState.End then
+                    fd=false
+                end
+            end)
+        end
+    end)
+
+    Float.InputChanged:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseMovement
+        or i.UserInputType==Enum.UserInputType.Touch then
+            fi=i
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(i)
+        if i==fi and fd then
+            local d=i.Position-fs
+
+            Float.Position=UDim2.new(
+                fp.X.Scale,
+                fp.X.Offset+d.X,
+                fp.Y.Scale,
+                fp.Y.Offset+d.Y
+            )
+        end
+    end)
+
+    local visible=true
+
+    Min.MouseButton1Click:Connect(function()
+        visible=false
+        Frame.Visible=false
+        Float.Visible=true
+    end)
+
+    Float.MouseButton1Click:Connect(function()
+        if not fd then
+            visible=true
+            Frame.Visible=true
+            Float.Visible=false
+        end
+    end)
+
+    UIS.InputBegan:Connect(function(i,gp)
+        if gp then
+            return
+        end
+        if i.KeyCode==Enum.KeyCode.Semicolon then
+            if not Frame.Visible then
+                visible=true
+                Frame.Visible=true
+                Float.Visible=false
+            end
+            SearchBox:CaptureFocus()
+            SearchBox.CursorPosition=#SearchBox.Text+1
+            return
+        end
+        if i.KeyCode==Enum.KeyCode.RightShift then
+            visible=not visible
+            Frame.Visible=visible
+            Float.Visible=false
+        end
+    end)
+
+    --// REGISTRY
+    local AllElements={}
+    local PageTabs={}
+    local ConfigEntries={}
+    local PluginConfigEntries={}
+    local ResetEntries={}
+    local ShortcutEntries={}
+    local ShortcutDragToken=0
+
+    local LoadedPlugins={}
+    local PluginTabOrder=0
+    local CurrentPlugin=nil
+
+    --// PERFORMANCE / UI SCALE
+    local PerformanceMode=false
+    local UIRefreshQueued=false
+    local UIScaleValue=1.1
+
+    local function QueueCanvasUpdate(fn)
+        if PerformanceMode then
+            if UIRefreshQueued then
+                return
+            end
+            UIRefreshQueued=true
+            task.delay(.06,function()
+                UIRefreshQueued=false
+                pcall(fn)
+            end)
+        else
+            task.defer(fn)
+        end
+    end
+
+    --// AUTO RESIZE
+    --// WINDOW LAYOUT
+--// Tabs are scrollable instead of making the window taller.
+
+local function UpdateWindowLayout()
+
+    -- Keep the normal window size.
+    local contentHeight=238
+
+    Frame.Size=UDim2.new(
+        0,
+        455,
+        0,
+        contentHeight+62
+    )
+
+    Dash.Size=UDim2.new(
+        0,
+        115,
+        0,
+        contentHeight
+    )
+
+    Tabs.Size=UDim2.new(
+        0,
+        108,
+        0,
+        contentHeight-9
+    )
+
+    Pages.Size=UDim2.new(
+        0,
+        319,
+        0,
+        contentHeight
+    )
+
+
+    --// Update page sizes
+    for _,page in ipairs(Folder:GetChildren()) do
+
+        if page:IsA("ScrollingFrame") then
+
+            page.Size=UDim2.new(
+                1,
+                -3,
+                0,
+                contentHeight-13
+            )
+
+        end
+
+    end
+
+
+    --// Update page canvases
+    QueueCanvasUpdate(function()
+
+        for _,page in ipairs(Folder:GetChildren()) do
+
+            if page:IsA("ScrollingFrame") then
+
+                local layout=
+                    page:FindFirstChildOfClass(
+                        "UIListLayout"
+                    )
+
+                if layout then
+
+                    page.CanvasSize=UDim2.new(
+                        0,
+                        0,
+                        0,
+                        math.max(
+                            layout.AbsoluteContentSize.Y+12,
+                            page.AbsoluteSize.Y
+                        )
+                    )
+
+                end
+
+            end
+
+        end
+
+    end)
+
+end
+
+    --// INDEPENDENT LEFT ACTIVE PANEL
+    local TogglePanel=Instance.new("Frame")
+    local ToggleCorner=Instance.new("UICorner")
+    local ToggleStroke=Instance.new("UIStroke")
+    local ToggleTitle=Instance.new("TextLabel")
+    local ToggleList=Instance.new("Frame")
+    local ToggleLayout=Instance.new("UIListLayout")
+
+    TogglePanel.Name="NOVA_ActiveToggles"
+    TogglePanel.Parent=Gui
+    TogglePanel.BackgroundColor3=Color3.fromRGB(15,15,15)
+    TogglePanel.BorderSizePixel=0
+    TogglePanel.Position=UDim2.new(0,12,0,0.5)
+    TogglePanel.Size=UDim2.new(0,210,0,45)
+    TogglePanel.Active=true
+    TogglePanel.Visible=true
+    TogglePanel.ZIndex=200
+
+    ToggleCorner.CornerRadius=UDim.new(0,7)
+    ToggleCorner.Parent=TogglePanel
+
+    ToggleStroke.Color=Color3.fromRGB(35,35,35)
+    ToggleStroke.Transparency=.1
+    ToggleStroke.Parent=TogglePanel
+
+    ToggleTitle.Parent=TogglePanel
+    ToggleTitle.BackgroundTransparency=1
+    ToggleTitle.Position=UDim2.new(0,12,0,6)
+    ToggleTitle.Size=UDim2.new(1,-24,0,22)
+    ToggleTitle.Font=Enum.Font.GothamSemibold
+    ToggleTitle.Text="Active Toggles"
+    ToggleTitle.TextColor3=Color3.fromRGB(137,246,255)
+    ToggleTitle.TextSize=12
+    ToggleTitle.TextXAlignment=Enum.TextXAlignment.Left
+    ToggleTitle.ZIndex=201
+
+    ToggleList.Parent=TogglePanel
+    ToggleList.BackgroundTransparency=1
+    ToggleList.Position=UDim2.new(0,10,0,34)
+    ToggleList.Size=UDim2.new(1,-20,1,-40)
+    ToggleList.ZIndex=201
+
+    ToggleLayout.Parent=ToggleList
+    ToggleLayout.SortOrder=Enum.SortOrder.LayoutOrder
+    ToggleLayout.Padding=UDim.new(0,5)
+
+    local ActiveToggleRows={}
+    local ToggleControllers={}
+
+    local function UpdateTogglePanel()
+        local count=0
+
+        for _,row in pairs(ActiveToggleRows) do
+            if row and row.Parent then
+                count+=1
+            end
+        end
+
+        local height=45
+
+        if count>0 then
+            height=45+(count*29)+8
+        end
+
+        TogglePanel.Size=UDim2.new(0,210,0,height)
+    end
+
+    --// PANEL DRAG ONLY
+    local tpDragging=false
+    local tpInput
+    local tpStart
+    local tpPos
+
+    ToggleTitle.InputBegan:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1
+        or i.UserInputType==Enum.UserInputType.Touch then
+
+            tpDragging=true
+            tpStart=i.Position
+            tpPos=TogglePanel.Position
+
+            i.Changed:Connect(function()
+                if i.UserInputState==Enum.UserInputState.End then
+                    tpDragging=false
+                end
+            end)
+        end
+    end)
+
+    ToggleTitle.InputChanged:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseMovement
+        or i.UserInputType==Enum.UserInputType.Touch then
+            tpInput=i
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(i)
+        if i==tpInput and tpDragging then
+            local d=i.Position-tpStart
+
+            TogglePanel.Position=UDim2.new(
+                tpPos.X.Scale,
+                tpPos.X.Offset+d.X,
+                tpPos.Y.Scale,
+                tpPos.Y.Offset+d.Y
+            )
+        end
+    end)
+
+    local HighlightedObject=nil
+    local HighlightedColor=nil
+    local HighlightToken=0
+    local SearchToken=0
+
+    local function ClearHighlight()
+        HighlightToken+=1
+
+        if HighlightedObject
+        and HighlightedObject.Parent
+        and HighlightedColor then
+
+            HighlightedObject.BackgroundColor3=HighlightedColor
+        end
+
+        HighlightedObject=nil
+        HighlightedColor=nil
+    end
+
+    local function Register(obj,name,page,typ)
+        if not obj then
+            return
+        end
+
+        table.insert(AllElements,{
+            Object=obj,
+            Name=tostring(name or ""),
+            Page=page,
+            Type=typ
+        })
+    end
+
+    local function RegisterConfig(name,typ,getter,setter)
+        local okDefault,defaultValue=pcall(getter)
+        local entry={
+            Name=tostring(name or ""),
+            Type=typ,
+            Get=getter,
+            Set=setter,
+            Default=okDefault and defaultValue or nil,
+            Plugin=CurrentPlugin
+        }
+
+        table.insert(ResetEntries,entry)
+
+        if CurrentPlugin then
+            table.insert(
+                PluginConfigEntries,
+                entry
+            )
+        else
+            table.insert(
+                ConfigEntries,
+                entry
+            )
+        end
+    end
+
+    --// SEARCH
+    local function Search(query)
+        SearchToken+=1
+        local token=SearchToken
+
+        query=tostring(query or "")
+        query=query:lower()
+        query=query:gsub("^%s+","")
+        query=query:gsub("%s+$","")
+
+        if query=="" then
+            ClearHighlight()
+            return
+        end
+
+        for _,data in ipairs(AllElements) do
+            if data.Name:lower():find(query,1,true) then
+                local page=data.Page
+
+                if not page or not page.Parent then
+                    return
+                end
+
+                for _,p in ipairs(Folder:GetChildren()) do
+                    if p:IsA("ScrollingFrame") then
+                        p.Visible=false
+                    end
+                end
+
+                page.Visible=true
+
+                for name,tab in pairs(PageTabs) do
+                    if name==page.Name then
+                        tab.TextTransparency=0
+                        tab.BackgroundColor3=Color3.fromRGB(25,25,25)
+                    else
+                        tab.TextTransparency=.3
+                        tab.BackgroundColor3=Color3.fromRGB(15,15,15)
+                    end
+                end
+
+                task.defer(function()
+                    task.wait()
+
+                    if token~=SearchToken then
+                        return
+                    end
+
+                    if not data.Object
+                    or not data.Object.Parent then
+                        return
+                    end
+
+                    local y=
+                        data.Object.AbsolutePosition.Y
+                        -page.AbsolutePosition.Y
+                        +page.CanvasPosition.Y
+                        -12
+
+                    local maxY=math.max(
+                        0,
+                        page.AbsoluteCanvasSize.Y-page.AbsoluteSize.Y
+                    )
+
+                    page.CanvasPosition=Vector2.new(
+                        0,
+                        math.clamp(y,0,maxY)
+                    )
+
+                    ClearHighlight()
+
+                    HighlightToken+=1
+                    local ht=HighlightToken
+
+                    HighlightedObject=data.Object
+                    HighlightedColor=data.Object.BackgroundColor3
+
+                    data.Object.BackgroundColor3=
+                        Color3.fromRGB(35,70,75)
+
+                    task.delay(.55,function()
+                        if ht~=HighlightToken then
+                            return
+                        end
+
+                        if HighlightedObject==data.Object
+                        and HighlightedObject.Parent
+                        and HighlightedColor then
+
+                            HighlightedObject.BackgroundColor3=
+                                HighlightedColor
+                        end
+
+                        HighlightedObject=nil
+                        HighlightedColor=nil
+                    end)
+                end)
+
+                return
+            end
+        end
+
+        ClearHighlight()
+    end
+
+    SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+        Search(SearchBox.Text)
+    end)
+
+    --// PAGES
+    local PageYep={}
+
+    function PageYep:addPage(
+        pagename,
+        scrollsize,
+        visible,
+        elementspacing
+    )
+        local pageName=tostring(pagename or "Page")
+
+        if PageTabs[pageName] then
+            pageName=pageName.." "..tostring(math.random(1000,9999))
+        end
+
+        local Tab=Instance.new("TextButton")
+        local TC=Instance.new("UICorner")
+        local Home=Instance.new("ScrollingFrame")
+        local Layout=Instance.new("UIListLayout")
+
+        Tab.Name="Tab"
+        Tab.Parent=Tabs
+        Tab.BackgroundColor3=Color3.fromRGB(15,15,15)
+        Tab.BorderSizePixel=0
+        Tab.Size=UDim2.new(0,108,0,27)
+        Tab.AutoButtonColor=false
+        Tab.Font=Enum.Font.GothamSemibold
+        Tab.Text=pageName
+        Tab.TextColor3=Color3.new(1,1,1)
+        Tab.TextSize=11
+        Tab.TextTransparency=visible and 0 or .3
+
+        TC.CornerRadius=UDim.new(0,7)
+        TC.Parent=Tab
+
+        Home.Name=pageName
+        Home.Parent=Folder
+        Home.Active=true
+        Home.BackgroundTransparency=1
+        Home.BorderSizePixel=0
+        Home.Position=UDim2.new(0,0,.03,0)
+        Home.Size=UDim2.new(1,-3,0,225)
+        Home.ScrollBarThickness=4
+        Home.ScrollBarImageColor3=Color3.fromRGB(70,70,70)
+        Home.CanvasSize=UDim2.new(0,0,0,0)
+        Home.ScrollingDirection=Enum.ScrollingDirection.Y
+        Home.VerticalScrollBarInset=Enum.ScrollBarInset.ScrollBar
+        Home.ClipsDescendants=true
+        Home.Visible=visible==true
+
+        Layout.Parent=Home
+        Layout.HorizontalAlignment=Enum.HorizontalAlignment.Center
+        Layout.SortOrder=Enum.SortOrder.LayoutOrder
+        Layout.Padding=UDim.new(0,elementspacing or 6)
+
+        local function UpdateCanvas()
+            local h=Layout.AbsoluteContentSize.Y+12
+
+            Home.CanvasSize=UDim2.new(
+                0,
+                0,
+                0,
+                math.max(
+                    h,
+                    Home.AbsoluteSize.Y
+                )
+            )
+        end
+
+        Layout:GetPropertyChangedSignal(
+            "AbsoluteContentSize"
+        ):Connect(UpdateCanvas)
+
+        Home:GetPropertyChangedSignal(
+            "AbsoluteSize"
+        ):Connect(UpdateCanvas)
+
+        task.defer(UpdateCanvas)
+
+        PageTabs[pageName]=Tab
+
+        if pageName~="Config" then
+            PluginTabOrder+=1
+            Tab.LayoutOrder=PluginTabOrder
+        end
+
+        local function ShowPage()
+            ClearHighlight()
+            SearchToken+=1
+
+            for _,p in ipairs(Folder:GetChildren()) do
+                if p:IsA("ScrollingFrame") then
+                    p.Visible=false
+                end
+            end
+
+            Home.Visible=true
+
+            for _,t in ipairs(Tabs:GetChildren()) do
+                if t:IsA("GuiButton") then
+                    t.TextTransparency=
+                        t==Tab and 0 or .3
+
+                    t.BackgroundColor3=
+                        t==Tab
+                        and Color3.fromRGB(25,25,25)
+                        or Color3.fromRGB(15,15,15)
+                end
+            end
+
+            task.defer(UpdateCanvas)
+        end
+
+        Tab.MouseButton1Click:Connect(ShowPage)
+
+        Tab.MouseEnter:Connect(function()
+            if Tab.TextTransparency==0 then
+                Tab.BackgroundColor3=
+                    Color3.fromRGB(10,10,10)
+            end
+        end)
+
+        Tab.MouseLeave:Connect(function()
+            Tab.BackgroundColor3=
+                Tab.TextTransparency==0
+                and Color3.fromRGB(25,25,25)
+                or Color3.fromRGB(15,15,15)
+        end)
+
+        local Elements={}
+
+        Elements.__Tab=Tab
+        Elements.__Page=Home
+
+        local function RegisterElement(obj,name,typ)
+            Register(obj,name,Home,typ)
+        end
+
+        --// LABEL
+        function Elements:addLabel(name,info)
+            local H=Instance.new("Frame")
+            local C=Instance.new("UICorner")
+            local T=Instance.new("TextLabel")
+            local I=Instance.new("TextLabel")
+
+            H.Parent=Home
+            H.BackgroundColor3=Color3.fromRGB(17,17,17)
+            H.BorderSizePixel=0
+            H.Size=UDim2.new(0,304,0,30)
+
+            C.CornerRadius=UDim.new(0,5)
+            C.Parent=H
+
+            T.Parent=H
+            T.BackgroundTransparency=1
+            T.Size=UDim2.new(1,0,0,17)
+            T.Font=Enum.Font.GothamSemibold
+            T.Text=name or ""
+            T.TextColor3=Color3.new(1,1,1)
+            T.TextSize=11
+
+            I.Parent=H
+            I.BackgroundTransparency=1
+            I.Position=UDim2.new(0,0,.55,0)
+            I.Size=UDim2.new(1,0,0,11)
+            I.Font=Enum.Font.GothamSemibold
+            I.Text=info or ""
+            I.TextColor3=Color3.new(1,1,1)
+            I.TextTransparency=.3
+            I.TextSize=9
+
+            RegisterElement(H,name,"Label")
+
+            return H,T,I
+        end
+
+        
+--// PLUGIN EXECUTION
+local function ResolvePluginResult(result)
+    local current=result
+
+    for i=1,8 do
+        if type(current)=="table" then
+            if type(current.Tabs)=="table" then
+                return current
+            end
+
+            if type(current.Plugin)=="table" then
+                current=current.Plugin
+            elseif type(current.Data)=="table" then
+                current=current.Data
+            elseif type(current.Module)=="table" then
+                current=current.Module
+            else
+                return nil,"Plugin did not return a valid plugin table"
+            end
+
+        elseif type(current)=="function" then
+            local ok,nextResult=pcall(current)
+
+            if not ok then
+                return nil,tostring(nextResult)
+            end
+
+            current=nextResult
+        else
+            return nil,"Plugin returned "..type(current)
+        end
+    end
+
+    return nil,"Plugin wrapper depth exceeded"
+end
+
+local function ExecutePluginSource(source,fileName)
+    if type(loadstring)~="function" then
+        return nil,"loadstring unavailable"
+    end
+
+    local ok,chunk=pcall(function()
+        return loadstring(
+            source,
+            "@"..tostring(fileName)
+        )
+    end)
+
+    if not ok or type(chunk)~="function" then
+        return nil,tostring(chunk)
+    end
+
+    local okRun,result=pcall(chunk)
+
+    if not okRun then
+        return nil,tostring(result)
+    end
+
+    return ResolvePluginResult(result)
+end
+
+--// PLUGIN LOADER
+local function LoadPlugin(path)
+    if type(path)~="string" or path=="" then
+        if PluginStatus then
+            PluginStatus.Text="Select a plugin first"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    local fileKey=tostring(path)
+
+    if LoadedPlugins[fileKey] then
+        if PluginStatus then
+            PluginStatus.Text="Already loaded: "..PluginFileName(fileKey)
+            PluginStatus.TextColor3=Color3.fromRGB(255,190,90)
+        end
+        return false
+    end
+
+    if type(isfile)~="function" or not isfile(fileKey) then
+        if PluginStatus then
+            PluginStatus.Text="Plugin file not found"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    if type(readfile)~="function" then
+        if PluginStatus then
+            PluginStatus.Text="readfile unavailable"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    if type(loadstring)~="function" then
+        if PluginStatus then
+            PluginStatus.Text="loadstring unavailable"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    local okRead,source=pcall(function()
+        return readfile(fileKey)
+    end)
+
+    if not okRead or type(source)~="string" or source=="" then
+        if PluginStatus then
+            PluginStatus.Text="Failed to read plugin"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    local plugin,err=ExecutePluginSource(
+        source,
+        PluginFileName(fileKey)
+    )
+
+    if not plugin then
+        if PluginStatus then
+            PluginStatus.Text="Plugin error: "..tostring(err)
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    if type(plugin.Tabs)~="table" then
+        if PluginStatus then
+            PluginStatus.Text="Plugin has no Tabs table"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+        return false
+    end
+
+    local pluginName=tostring(
+        plugin.Name or PluginFileName(fileKey)
+    )
+
+    local pluginInfo={
+        Name=pluginName,
+        File=fileKey,
+        Plugin=plugin,
+        Tabs={},
+        Entries={}
+    }
+
+    LoadedPlugins[fileKey]=pluginInfo
+    CurrentPlugin=pluginInfo
+
+    local createdTabs=0
+    local errors={}
+
+    for _,tabInfo in ipairs(plugin.Tabs) do
+        if type(tabInfo)=="table"
+        and type(tabInfo.Name)=="string" then
+
+            local requestedName=tostring(tabInfo.Name)
+
+            if requestedName:lower()~="config"
+            and not PageTabs[requestedName] then
+
+                local pageOk,page=pcall(function()
+                    return PageYep:addPage(
+                        requestedName,
+                        tabInfo.ScrollSize or 6,
+                        false,
+                        tabInfo.ElementSpacing or 6
+                    )
+                end)
+
+                if pageOk and page then
+                    page.__Tab.LayoutOrder=PluginTabOrder
+                    PluginTabOrder+=1
+
+                    table.insert(
+                        pluginInfo.Tabs,
+                        page
+                    )
+
+                    createdTabs+=1
+
+                    if type(tabInfo.Elements)=="function" then
+                        local success,elementErr=pcall(
+                            tabInfo.Elements,
+                            page,
+                            plugin
+                        )
+
+                        if not success then
+                            table.insert(
+                                errors,
+                                requestedName..": "..tostring(elementErr)
+                            )
+                        end
+                    end
+                else
+                    table.insert(
+                        errors,
+                        requestedName..": "..tostring(page)
+                    )
+                end
+            end
+        end
+    end
+
+    CurrentPlugin=nil
+
+    UpdateWindowLayout()
+
+    if createdTabs==0 then
+        LoadedPlugins[fileKey]=nil
+
+        if PluginStatus then
+            PluginStatus.Text="Plugin created no tabs"
+            PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+        end
+
+        return false
+    end
+
+    --// Show first newly loaded plugin tab
+    if pluginInfo.Tabs[1] then
+        local first=pluginInfo.Tabs[1]
+
+        if first.__Tab and first.__Tab.Parent then
+            first.__Tab:Activate()
+            first.__Page.Visible=true
+
+            for _,page in ipairs(Folder:GetChildren()) do
+                if page:IsA("ScrollingFrame")
+                and page~=first.__Page then
+                    page.Visible=false
+                end
+            end
+
+            for _,tab in pairs(PageTabs) do
+                if tab:IsA("GuiButton") then
+                    if tab==first.__Tab then
+                        tab.TextTransparency=0
+                        tab.BackgroundColor3=Color3.fromRGB(25,25,25)
+                    else
+                        tab.TextTransparency=.3
+                        tab.BackgroundColor3=Color3.fromRGB(15,15,15)
+                    end
+                end
+            end
+        end
+    end
+
+    if PluginStatus then
+        if #errors>0 then
+            PluginStatus.Text=
+                "Loaded: "
+                ..pluginName
+                .." ("
+                ..createdTabs
+                .." tab"
+                ..(createdTabs==1 and "" or "s")
+                ..", "
+                ..#errors
+                .." error"
+                ..(#errors==1 and "" or "s")
+                ..")"
+        else
+            PluginStatus.Text=
+                "Loaded: "
+                ..pluginName
+                .." ("
+                ..createdTabs
+                .." tab"
+                ..(createdTabs==1 and "" or "s")
+                ..")"
+        end
+
+        PluginStatus.TextColor3=Color3.fromRGB(137,246,255)
+    end
+
+    return true
+end
+
+--// UI SETTINGS
+ConfigPage:addLabel(
+    "Interface",
+    "Scale and performance controls"
+)
+
+ConfigPage:addSlider(
+    "UI Scale",
+    80,
+    130,
+    function(v)
+        UIScaleValue=v/100
+        Scale.Scale=UIScaleValue
+    end,
+    110
+)
+
+ConfigPage:addToggle(
+    "Performance Mode",
+    false,
+    function(v)
+        PerformanceMode=v==true
+
+        for _,page in ipairs(Folder:GetChildren()) do
+            if page:IsA("ScrollingFrame") then
+                page.ScrollBarThickness=PerformanceMode and 2 or 4
+            end
+        end
+
+        if PerformanceMode then
+            UpdateWindowLayout()
+        end
+    end
+)
+
+ConfigPage:addButton(
+    "Load Plugin",
+    function()
+        local selected=
+            PluginDropdown
+            and PluginDropdown.Get()
+
+        if not selected then
+            if PluginStatus then
+                PluginStatus.Text="Select a plugin first"
+                PluginStatus.TextColor3=Color3.fromRGB(255,120,120)
+            end
+            return
+        end
+
+        LoadPlugin(tostring(selected))
+    end
+)
+
+--// INITIAL SETTINGS
+task.spawn(function()
+    if not SetupFolder() then
+        return
+    end
+
+    local settingsPath=ConfigFolder.."/settings.json"
+
+    if isfile(settingsPath) then
+        local ok,contents=pcall(function()
+            return readfile(settingsPath)
+        end)
+
+        if ok and contents then
+            local decodedOk,data=pcall(function()
+                return HttpService:JSONDecode(contents)
+            end)
+
+            if decodedOk and type(data)=="table" then
+                if type(data.Config)=="string"
+                and data.Config~="" then
+                    CurrentConfig=CleanName(data.Config)
+                end
+
+                AutoLoad=data.AutoLoad==true
+
+                if ConfigNameBox then
+                    ConfigNameBox.Text=CurrentConfig
+                end
+            end
+        end
+    end
+
+    task.wait(.15)
+
+    if ConfigDropdown then
+        ConfigDropdown.Refresh(
+            GetConfigFiles()
+        )
+    end
+
+    if PluginDropdown then
+        RefreshPluginDropdown()
+    end
+
+    if AutoLoad then
+        task.wait(.25)
+        LoadConfig(CurrentConfig)
+    end
+end)
+
+task.defer(function()
+    task.wait(.1)
+
+    if ConfigDropdown then
+        ConfigDropdown.Refresh(
+            GetConfigFiles()
+        )
+    end
+
+    if PluginDropdown then
+        RefreshPluginDropdown()
+    end
+
+    UpdateTogglePanel()
+
+--// ATTACH SHORTCUT HOLD TO GUI ELEMENTS
+local function NebulaAttachShortcut(source,name,isToggle,callback,getState)
+    if not source or not source:IsA("GuiObject") then return end
+    if source:GetAttribute("ShortcutAttached") then return end
+    source:SetAttribute("ShortcutAttached",true)
+
+    local UIS=game:GetService("UserInputService")
+    local hold=.35
+    local down=false
+    local dragging=false
+    local token=0
+    local startPos=nil
+    local oldColor=nil
+
+    source.InputBegan:Connect(function(input)
+        if input.UserInputType~=Enum.UserInputType.MouseButton1
+        and input.UserInputType~=Enum.UserInputType.Touch then return end
+        down=true
+        dragging=false
+        startPos=input.Position
+        token+=1
+        local myToken=token
+
+        task.delay(hold,function()
+            if down and token==myToken then
+                dragging=true
+                source:SetAttribute("ShortcutDragging",true)
+                local h=source:FindFirstChildOfClass("UIStroke")
+                if h then h.Thickness=1.5 h.Transparency=0 end
+            end
+        end)
+    end)
+
+    UIS.InputChanged:Connect(function(input)
+        if not down or not dragging then return end
+        if input.UserInputType~=Enum.UserInputType.MouseMovement
+        and input.UserInputType~=Enum.UserInputType.Touch then return end
+        if (input.Position-startPos).Magnitude<5 then return end
+
+        if not source:GetAttribute("ShortcutCreated") then
+            source:SetAttribute("ShortcutCreated",true)
+            local shortcut=MakeShortcut(source,name,isToggle,callback,getState)
+            shortcut.Position=UDim2.fromOffset(input.Position.X-shortcut.AbsoluteSize.X/2,input.Position.Y-shortcut.AbsoluteSize.Y/2)
+        end
+    end)
+
+    UIS.InputEnded:Connect(function(input)
+        if input.UserInputType~=Enum.UserInputType.MouseButton1
+        and input.UserInputType~=Enum.UserInputType.Touch then return end
+        down=false
+        token+=1
+        if dragging then
+            dragging=false
+            source:SetAttribute("ShortcutDragging",false)
+            local h=source:FindFirstChildOfClass("UIStroke")
+            if h then h.Thickness=1 h.Transparency=.35 end
+        end
+    end)
+end
+_G.NebulaAttachShortcut=NebulaAttachShortcut
+
+    UpdateWindowLayout()
+end)
+
+return PageYep
+end
+
+return Library
+
+--// DRAG-OUT SHORTCUT SYSTEM
+local ShortcutFolder=Instance.new("ScreenGui")
+ShortcutFolder.Name="NebulaShortcuts"
+ShortcutFolder.ResetOnSpawn=false
+ShortcutFolder.IgnoreGuiInset=true
+ShortcutFolder.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
+ShortcutFolder.Parent=game:GetService("CoreGui")
+
+local ShortcutItems={}
+local ShortcutDragTime=.35
+local ShortcutDragging=false
+local ShortcutInput=nil
+local ShortcutGhost=nil
+
+local function RemoveAllShortcuts()
+    for i=#ShortcutItems,1,-1 do
+        local item=ShortcutItems[i]
+        if item and item.Gui then
+            item.Gui:Destroy()
+        end
+        table.remove(ShortcutItems,i)
+    end
+    ShortcutDragging=false
+    ShortcutInput=nil
+    ShortcutGhost=nil
+end
+
+local function MakeShortcut(source,name,isToggle,callback,getState)
+    local gui=Instance.new("TextButton")
+    gui.Name="Shortcut_"..tostring(name)
+    gui.Size=UDim2.fromOffset(isToggle and 92 or 86,28)
+    gui.BackgroundColor3=Color3.fromRGB(28,31,38)
+    gui.BorderSizePixel=0
+    gui.AutoButtonColor=false
+    gui.Text=tostring(name)
+    gui.TextSize=12
+    gui.Font=Enum.Font.GothamMedium
+    gui.TextColor3=Color3.fromRGB(235,238,245)
+    gui.ZIndex=1000
+    gui.Parent=ShortcutFolder
+
+    local corner=Instance.new("UICorner")
+    corner.CornerRadius=UDim.new(0,7)
+    corner.Parent=gui
+
+    local stroke=Instance.new("UIStroke")
+    stroke.Thickness=1
+    stroke.Transparency=.35
+    stroke.Color=Color3.fromRGB(100,105,120)
+    stroke.Parent=gui
+
+    local dragActive=false
+    local holdStarted=false
+    local moved=false
+    local startInputPos=nil
+    local startGuiPos=nil
+    local holdToken=0
+
+    local function setDragVisual(on)
+        if on then
+            gui.BackgroundColor3=Color3.fromRGB(55,62,78)
+            stroke.Transparency=0
+            stroke.Thickness=1.5
+        else
+            gui.BackgroundColor3=Color3.fromRGB(28,31,38)
+            stroke.Transparency=.35
+            stroke.Thickness=1
+        end
+    end
+
+    local function beginDrag(input)
+        dragActive=true
+        ShortcutDragging=true
+        ShortcutInput=input
+        startInputPos=input.Position
+        startGuiPos=gui.Position
+        setDragVisual(true)
+        if source and source:IsA("GuiObject") then
+            source:SetAttribute("ShortcutDragging",true)
+        end
+    end
+
+    local function finishDrag()
+        if not dragActive then return end
+        dragActive=false
+        ShortcutDragging=false
+        ShortcutInput=nil
+        setDragVisual(false)
+        if source and source:IsA("GuiObject") then
+            source:SetAttribute("ShortcutDragging",false)
+        end
+    end
+
+    gui.InputBegan:Connect(function(input)
+        if input.UserInputType~=Enum.UserInputType.MouseButton1
+        and input.UserInputType~=Enum.UserInputType.Touch then return end
+
+        holdStarted=true
+        moved=false
+        startInputPos=input.Position
+        holdToken+=1
+        local token=holdToken
+
+        task.delay(ShortcutDragTime,function()
+            if holdStarted and token==holdToken and not moved then
+                beginDrag(input)
+            end
+        end)
+    end)
+
+    gui.InputChanged:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.MouseMovement
+        or input.UserInputType==Enum.UserInputType.Touch then
+            ShortcutInput=input
+        end
+    end)
+
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if not dragActive then return end
+        if input~=ShortcutInput and input.UserInputType~=Enum.UserInputType.MouseMovement
+        and input.UserInputType~=Enum.UserInputType.Touch then return end
+
+        local delta=input.Position-startInputPos
+        if delta.Magnitude<2 then return end
+        gui.Position=UDim2.new(startGuiPos.X.Scale,startGuiPos.X.Offset+delta.X,startGuiPos.Y.Scale,startGuiPos.Y.Offset+delta.Y)
+    end)
+
+    game:GetService("UserInputService").InputEnded:Connect(function(input)
+        if input.UserInputType~=Enum.UserInputType.MouseButton1
+        and input.UserInputType~=Enum.UserInputType.Touch then return end
+
+        local wasDrag=dragActive
+        holdStarted=false
+        holdToken+=1
+        if wasDrag then
+            finishDrag()
+        else
+            if not moved and callback then
+                task.spawn(callback)
+            end
+        end
+    end)
+
+    table.insert(ShortcutItems,{Gui=gui,Source=source})
+    return gui
+end
+
+-- Register this helper on the main GUI so existing buttons/toggles can opt in.
+_G.NebulaCreateShortcut=MakeShortcut
+_G.NebulaRemoveAllShortcuts=RemoveAllShortcuts
+
+-- Remove every shortcut when Reset is used.
+_G.NebulaResetShortcuts=RemoveAllShortcuts
+
