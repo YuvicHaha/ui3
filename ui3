@@ -1796,61 +1796,136 @@ end
 
             --// TOUCH SHORTCUT
             if UIS.TouchEnabled then
+                local ShortcutButton=nil
+                local ShortcutDragConn=nil
+
+                local function RemoveShortcut()
+                    if ShortcutDragConn then
+                        ShortcutDragConn:Disconnect()
+                        ShortcutDragConn=nil
+                    end
+
+                    if ShortcutButton then
+                        ShortcutButton:Destroy()
+                        ShortcutButton=nil
+                    end
+
+                    Bind:SetAttribute("Shown",false)
+                    Bind.Text="Show"
+                end
+
                 Bind.MouseButton1Click:Connect(function()
                     if Bind:GetAttribute("Shown") then
-                        Bind:SetAttribute("Shown",false)
-                        Bind.Text="Show"
-                    else
-                        Bind:SetAttribute("Shown",true)
-                        Bind.Text="Hide"
+                        RemoveShortcut()
+                        return
+                    end
 
-                        local SB=Instance.new("TextButton")
-                        local SC=Instance.new("UICorner")
+                    Bind:SetAttribute("Shown",true)
+                    Bind.Text="Hide"
 
-                        SB.Parent=Gui
-                        SB.Name=(name or "Toggle").."_Shortcut"
-                        SB.Size=UDim2.new(0,78,0,30)
-                        SB.Position=UDim2.new(1,-90,0,.35)
-                        SB.Font=Enum.Font.GothamBold
-                        SB.Text=name or "Toggle"
-                        SB.TextSize=9
-                        SB.TextWrapped=true
-                        SB.BackgroundColor3=Color3.fromRGB(30,30,30)
-                        SB.TextColor3=Color3.fromRGB(160,160,160)
-                        SB.ZIndex=250
+                    local SB=Instance.new("TextButton")
+                    local SC=Instance.new("UICorner")
 
-                        SC.CornerRadius=UDim.new(0,5)
-                        SC.Parent=SB
+                    ShortcutButton=SB
 
-                        SB.MouseButton1Click:Connect(function()
-                            if keybindMode then
-                                if armed then
-                                    SetActive(
-                                        not active,
-                                        true
-                                    )
+                    SB.Parent=Gui
+                    SB.Name=(name or "Toggle").."_Shortcut"
+                    SB.Size=UDim2.new(0,78,0,30)
+                    SB.Position=UDim2.new(1,-90,0,.35)
+                    SB.Font=Enum.Font.GothamBold
+                    SB.Text=name or "Toggle"
+                    SB.TextSize=9
+                    SB.TextWrapped=true
+                    SB.BackgroundColor3=active
+                        and Color3.fromRGB(40,140,70)
+                        or Color3.fromRGB(30,30,30)
+                    SB.TextColor3=Color3.fromRGB(160,160,160)
+                    SB.ZIndex=250
+                    SB.Active=true
+                    SB.AutoButtonColor=false
+
+                    SC.CornerRadius=UDim.new(0,5)
+                    SC.Parent=SB
+
+                    --// SHORTCUT DRAG
+                    local dragging=false
+                    local moved=false
+                    local dragInput=nil
+                    local dragStart=nil
+                    local startPos=nil
+
+                    SB.InputBegan:Connect(function(i)
+                        if i.UserInputType==Enum.UserInputType.MouseButton1
+                        or i.UserInputType==Enum.UserInputType.Touch then
+                            dragging=true
+                            moved=false
+                            dragStart=i.Position
+                            startPos=SB.Position
+
+                            i.Changed:Connect(function()
+                                if i.UserInputState==Enum.UserInputState.End then
+                                    dragging=false
                                 end
-                            else
-                                active=not active
-                                UpdateNormal()
+                            end)
+                        end
+                    end)
+
+                    SB.InputChanged:Connect(function(i)
+                        if i.UserInputType==Enum.UserInputType.MouseMovement
+                        or i.UserInputType==Enum.UserInputType.Touch then
+                            dragInput=i
+                        end
+                    end)
+
+                    ShortcutDragConn=UIS.InputChanged:Connect(function(i)
+                        if i==dragInput and dragging and ShortcutButton==SB then
+                            local d=i.Position-dragStart
+
+                            if math.abs(d.X)>5 or math.abs(d.Y)>5 then
+                                moved=true
                             end
 
-                            SB.BackgroundColor3=
-                                active
-                                and Color3.fromRGB(
-                                    40,
-                                    140,
-                                    70
-                                )
-                                or Color3.fromRGB(
-                                    30,
-                                    30,
-                                    30
-                                )
+                            SB.Position=UDim2.new(
+                                startPos.X.Scale,
+                                startPos.X.Offset+d.X,
+                                startPos.Y.Scale,
+                                startPos.Y.Offset+d.Y
+                            )
+                        end
+                    end)
 
-                            SB.TextColor3=Color3.new(1,1,1)
-                        end)
-                    end
+                    SB.MouseButton1Click:Connect(function()
+                        if moved or ShortcutButton~=SB then
+                            return
+                        end
+
+                        if keybindMode then
+                            if armed then
+                                SetActive(
+                                    not active,
+                                    true
+                                )
+                            end
+                        else
+                            active=not active
+                            UpdateNormal()
+                        end
+
+                        SB.BackgroundColor3=
+                            active
+                            and Color3.fromRGB(
+                                40,
+                                140,
+                                70
+                            )
+                            or Color3.fromRGB(
+                                30,
+                                30,
+                                30
+                            )
+
+                        SB.TextColor3=Color3.new(1,1,1)
+                    end)
                 end)
 
             elseif hasBind then
