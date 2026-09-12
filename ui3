@@ -214,6 +214,7 @@ function Library:CreateWindow(windowname,windowinfo)
     local PagesCorner=Instance.new("UICorner")
     local Folder=Instance.new("Folder")
     local Title=Instance.new("TextLabel")
+    local ResetButton=Instance.new("TextButton")
     local Credits=Instance.new("TextButton")
     local CreditIcon=Instance.new("ImageLabel")
     local CreditText=Instance.new("TextLabel")
@@ -285,12 +286,31 @@ TabLayout.Padding=UDim.new(0,6)
     Title.Parent=Frame
     Title.BackgroundTransparency=1
     Title.Position=UDim2.new(.043,0,.028,0)
-    Title.Size=UDim2.new(0,145,0,33)
+    Title.Size=UDim2.new(0,112,0,33)
     Title.Font=Enum.Font.GothamSemibold
     Title.Text=windowname or "UI"
     Title.TextColor3=Color3.new(1,1,1)
     Title.TextSize=14
     Title.TextXAlignment=Enum.TextXAlignment.Left
+
+    ResetButton.Parent=Frame
+    ResetButton.BackgroundColor3=Color3.fromRGB(30,30,30)
+    ResetButton.BorderSizePixel=0
+    ResetButton.Position=UDim2.new(.30,0,.05,0)
+    ResetButton.Size=UDim2.new(0,40,0,22)
+    ResetButton.Font=Enum.Font.GothamSemibold
+    ResetButton.Text="reset"
+    ResetButton.TextColor3=Color3.fromRGB(185,185,185)
+    ResetButton.TextSize=9
+    ResetButton.AutoButtonColor=false
+    ResetButton.ZIndex=50
+    local ResetCorner=Instance.new("UICorner")
+    ResetCorner.CornerRadius=UDim.new(0,5)
+    ResetCorner.Parent=ResetButton
+    local ResetStroke=Instance.new("UIStroke")
+    ResetStroke.Color=Color3.fromRGB(45,45,45)
+    ResetStroke.Transparency=.15
+    ResetStroke.Parent=ResetButton
 
     --// SEARCH
     local SearchBox=Instance.new("TextBox")
@@ -300,7 +320,7 @@ TabLayout.Padding=UDim.new(0,6)
     SearchBox.Parent=Frame
     SearchBox.BackgroundColor3=Color3.fromRGB(15,15,15)
     SearchBox.BorderSizePixel=0
-    SearchBox.Position=UDim2.new(.37,0,.045,0)
+    SearchBox.Position=UDim2.new(.40,0,.045,0)
     SearchBox.Size=UDim2.new(0,150,0,24)
     SearchBox.Font=Enum.Font.GothamSemibold
     SearchBox.PlaceholderText="Search..."
@@ -371,6 +391,9 @@ TabLayout.Padding=UDim.new(0,6)
             if SearchBox:IsFocused() then
                 return
             end
+            if Frame:GetAttribute("Resizing") then
+                return
+            end
 
             dragging=true
             dragStart=i.Position
@@ -407,6 +430,135 @@ TabLayout.Padding=UDim.new(0,6)
     SearchBox.Focused:Connect(function()
         dragging=false
     end)
+
+    --// FOUR CORNER RESIZE
+    Frame:SetAttribute("Resizing",false)
+    do
+        local resizing=false
+        local resizeCorner=nil
+        local resizeInput=nil
+        local resizeStart=nil
+        local resizeStartSize=nil
+        local resizeStartPos=nil
+
+        local function MakeHandle(name,anchor,position,cursor)
+            local Handle=Instance.new("TextButton")
+            Handle.Name=name
+            Handle.Parent=Frame
+            Handle.BackgroundTransparency=1
+            Handle.BorderSizePixel=0
+            Handle.AnchorPoint=anchor
+            Handle.Position=position
+            Handle.Size=UDim2.new(0,14,0,14)
+            Handle.Text=""
+            Handle.AutoButtonColor=false
+            Handle.ZIndex=100
+
+            Handle.InputBegan:Connect(function(i)
+                if i.UserInputType==Enum.UserInputType.MouseButton1
+                or i.UserInputType==Enum.UserInputType.Touch then
+                    resizing=true
+                    Frame:SetAttribute("Resizing",true)
+                    resizeCorner=name
+                    resizeStart=i.Position
+                    resizeStartSize=Frame.AbsoluteSize
+                    resizeStartPos=Frame.Position
+
+                    i.Changed:Connect(function()
+                        if i.UserInputState==Enum.UserInputState.End then
+                            resizing=false
+                            resizeCorner=nil
+                            Frame:SetAttribute("Resizing",false)
+                        end
+                    end)
+                end
+            end)
+
+            Handle.InputChanged:Connect(function(i)
+                if i.UserInputType==Enum.UserInputType.MouseMovement
+                or i.UserInputType==Enum.UserInputType.Touch then
+                    resizeInput=i
+                end
+            end)
+
+            return Handle
+        end
+
+        MakeHandle(
+            "ResizeTopLeft",
+            Vector2.new(0,0),
+            UDim2.new(0,0,0,0)
+        )
+
+        MakeHandle(
+            "ResizeTopRight",
+            Vector2.new(1,0),
+            UDim2.new(1,0,0,0)
+        )
+
+        MakeHandle(
+            "ResizeBottomLeft",
+            Vector2.new(0,1),
+            UDim2.new(0,0,1,0)
+        )
+
+        MakeHandle(
+            "ResizeBottomRight",
+            Vector2.new(1,1),
+            UDim2.new(1,0,1,0)
+        )
+
+        UIS.InputChanged:Connect(function(i)
+            if not resizing or i~=resizeInput then
+                return
+            end
+
+            local d=i.Position-resizeStart
+            local minX=455
+            local minY=300
+            local maxX=900
+            local maxY=650
+
+            local width=resizeStartSize.X
+            local height=resizeStartSize.Y
+            local pos=resizeStartPos
+
+            if resizeCorner=="ResizeTopLeft" then
+                width=math.clamp(resizeStartSize.X-d.X,minX,maxX)
+                height=math.clamp(resizeStartSize.Y-d.Y,minY,maxY)
+                pos=UDim2.new(
+                    resizeStartPos.X.Scale,
+                    resizeStartPos.X.Offset+d.X,
+                    resizeStartPos.Y.Scale,
+                    resizeStartPos.Y.Offset+d.Y
+                )
+            elseif resizeCorner=="ResizeTopRight" then
+                width=math.clamp(resizeStartSize.X+d.X,minX,maxX)
+                height=math.clamp(resizeStartSize.Y-d.Y,minY,maxY)
+                pos=UDim2.new(
+                    resizeStartPos.X.Scale,
+                    resizeStartPos.X.Offset,
+                    resizeStartPos.Y.Scale,
+                    resizeStartPos.Y.Offset+d.Y
+                )
+            elseif resizeCorner=="ResizeBottomLeft" then
+                width=math.clamp(resizeStartSize.X-d.X,minX,maxX)
+                height=math.clamp(resizeStartSize.Y+d.Y,minY,maxY)
+                pos=UDim2.new(
+                    resizeStartPos.X.Scale,
+                    resizeStartPos.X.Offset+d.X,
+                    resizeStartPos.Y.Scale,
+                    resizeStartPos.Y.Offset
+                )
+            else
+                width=math.clamp(resizeStartSize.X+d.X,minX,maxX)
+                height=math.clamp(resizeStartSize.Y+d.Y,minY,maxY)
+            end
+
+            Frame.Position=pos
+            Frame.Size=UDim2.new(0,width,0,height)
+        end)
+    end
 
     --// MINIMIZE
     local Min=Instance.new("TextButton")
@@ -502,7 +654,20 @@ TabLayout.Padding=UDim.new(0,6)
     end)
 
     UIS.InputBegan:Connect(function(i,gp)
-        if not gp and i.KeyCode==Enum.KeyCode.RightShift then
+        if gp then
+            return
+        end
+        if i.KeyCode==Enum.KeyCode.Semicolon then
+            if not Frame.Visible then
+                visible=true
+                Frame.Visible=true
+                Float.Visible=false
+            end
+            SearchBox:CaptureFocus()
+            SearchBox.CursorPosition=#SearchBox.Text+1
+            return
+        end
+        if i.KeyCode==Enum.KeyCode.RightShift then
             visible=not visible
             Frame.Visible=visible
             Float.Visible=false
@@ -514,10 +679,31 @@ TabLayout.Padding=UDim.new(0,6)
     local PageTabs={}
     local ConfigEntries={}
     local PluginConfigEntries={}
+    local ResetEntries={}
 
     local LoadedPlugins={}
     local PluginTabOrder=0
     local CurrentPlugin=nil
+
+    --// PERFORMANCE / UI SCALE
+    local PerformanceMode=false
+    local UIRefreshQueued=false
+    local UIScaleValue=1.1
+
+    local function QueueCanvasUpdate(fn)
+        if PerformanceMode then
+            if UIRefreshQueued then
+                return
+            end
+            UIRefreshQueued=true
+            task.delay(.06,function()
+                UIRefreshQueued=false
+                pcall(fn)
+            end)
+        else
+            task.defer(fn)
+        end
+    end
 
     --// AUTO RESIZE
     --// WINDOW LAYOUT
@@ -575,7 +761,7 @@ local function UpdateWindowLayout()
 
 
     --// Update page canvases
-    task.defer(function()
+    QueueCanvasUpdate(function()
 
         for _,page in ipairs(Folder:GetChildren()) do
 
@@ -750,13 +936,17 @@ end
     end
 
     local function RegisterConfig(name,typ,getter,setter)
+        local okDefault,defaultValue=pcall(getter)
         local entry={
             Name=tostring(name or ""),
             Type=typ,
             Get=getter,
             Set=setter,
+            Default=okDefault and defaultValue or nil,
             Plugin=CurrentPlugin
         }
+
+        table.insert(ResetEntries,entry)
 
         if CurrentPlugin then
             table.insert(
@@ -1186,7 +1376,7 @@ end
             T.Size=UDim2.new(0,145,0,30)
             T.Font=Enum.Font.GothamSemibold
             T.Text=name or ""
-            T.TextColor3=Color3.new(1,1,1)
+            T.TextColor3=Color3.fromRGB(235,235,235)
             T.TextSize=11
             T.TextXAlignment=Enum.TextXAlignment.Left
 
@@ -1228,7 +1418,7 @@ end
             TB.AutoButtonColor=false
 
             TF.Parent=TB
-            TF.BackgroundColor3=Color3.fromRGB(5,5,5)
+            TF.BackgroundColor3=Color3.fromRGB(45,45,45)
             TF.Position=UDim2.new(.28,0,0,5)
             TF.Size=UDim2.new(0,35,0,20)
 
@@ -1250,6 +1440,18 @@ end
             local active=keybindMode and false or default
             local closePicker
             local Row
+
+            local function UpdateSwitchVisual()
+                local on=keybindMode and active or active
+                TF.BackgroundColor3=
+                    on
+                    and Color3.fromRGB(55,115,120)
+                    or Color3.fromRGB(45,45,45)
+                Ball.BackgroundColor3=
+                    on
+                    and Color3.fromRGB(245,255,255)
+                    or Color3.fromRGB(175,175,175)
+            end
 
             local function RemoveRightRow()
                 if Row then
@@ -1348,6 +1550,7 @@ end
                 end
 
                 UpdateRightRow()
+                UpdateSwitchVisual()
             end
 
             local function SetArmed(v,callCallback)
@@ -1380,6 +1583,7 @@ end
                 end
 
                 UpdateRightRow()
+                UpdateSwitchVisual()
 
                 if callCallback~=false
                 and not keybindMode then
@@ -1408,6 +1612,7 @@ end
                 end
 
                 UpdateRightRow()
+                UpdateSwitchVisual()
 
                 pcall(callback,active)
 
@@ -1737,6 +1942,7 @@ end
             end
 
             UpdateRightRow()
+            UpdateSwitchVisual()
 
             RegisterElement(H,name,"Toggle")
 
@@ -1815,6 +2021,7 @@ end
 
                     pcall(callback,active)
                     UpdateRightRow()
+                    UpdateSwitchVisual()
                 end
             )
 
@@ -1826,11 +2033,16 @@ end
             name,
             minvalue,
             maxvalue,
-            callback
+            callback,
+            defaultvalue
         )
             local min=tonumber(minvalue) or 0
             local max=tonumber(maxvalue) or 100
-            local value=min
+            local value=math.clamp(
+                tonumber(defaultvalue) or min,
+                min,
+                max
+            )
 
             local H=Instance.new("Frame")
             local C=Instance.new("UICorner")
@@ -1839,6 +2051,8 @@ end
             local BC=Instance.new("UICorner")
             local Trail=Instance.new("Frame")
             local TC=Instance.new("UICorner")
+            local Knob=Instance.new("Frame")
+            local KC=Instance.new("UICorner")
             local Num=Instance.new("TextBox")
 
             H.Parent=Home
@@ -1865,8 +2079,10 @@ end
             Num.Size=UDim2.new(0,42,0,13)
             Num.Font=Enum.Font.GothamSemibold
             Num.Text=tostring(min)
-            Num.TextColor3=Color3.new(1,1,1)
+            Num.TextColor3=Color3.fromRGB(235,235,235)
             Num.TextSize=10
+            Num.TextEditable=true
+            Num.ZIndex=5
             Num.TextXAlignment=Enum.TextXAlignment.Right
             Num.ClearTextOnFocus=false
 
@@ -1882,11 +2098,22 @@ end
             BC.Parent=B
 
             Trail.Parent=B
-            Trail.BackgroundColor3=Color3.fromRGB(40,40,40)
+            Trail.BackgroundColor3=Color3.fromRGB(137,246,255)
             Trail.Size=UDim2.new(0,1,1,0)
+            Trail.ZIndex=2
 
             TC.CornerRadius=UDim.new(0,4)
             TC.Parent=Trail
+
+            Knob.Parent=B
+            Knob.BackgroundColor3=Color3.fromRGB(235,235,235)
+            Knob.Size=UDim2.new(0,12,0,12)
+            Knob.AnchorPoint=Vector2.new(.5,.5)
+            Knob.Position=UDim2.new(0,0,.5,0)
+            Knob.ZIndex=4
+
+            KC.CornerRadius=UDim.new(1,0)
+            KC.Parent=Knob
 
             local function Set(v,callCallback)
                 value=math.clamp(
@@ -1908,6 +2135,7 @@ end
                     1,
                     0
                 )
+                Knob.Position=UDim2.new(p,0,.5,0)
 
                 if callCallback~=false then
                     pcall(callback,value)
@@ -1968,10 +2196,25 @@ end
             end)
 
             Num.FocusLost:Connect(function()
-                Set(Num.Text,true)
+                local typed=tonumber(
+                    tostring(Num.Text):gsub("%s+","")
+                )
+
+                if typed==nil then
+                    Num.Text=tostring(math.floor(value))
+                    return
+                end
+
+                Set(typed,true)
             end)
 
-            Set(min,false)
+            Num.Focused:Connect(function()
+                task.defer(function()
+                    Num.CursorPosition=#Num.Text+1
+                end)
+            end)
+
+            Set(value,false)
 
             RegisterElement(H,name,"Slider")
 
@@ -2752,6 +2995,46 @@ end
         end
     )
 
+    local function ResetAll()
+        for _,entry in ipairs(ResetEntries) do
+            local resetValue=entry.Default
+            if entry.Type=="Toggle" then
+                resetValue=false
+            end
+            if resetValue~=nil then
+                pcall(entry.Set,resetValue)
+            elseif entry.Type=="Dropdown" then
+                pcall(entry.Set,nil)
+            end
+        end
+
+        AutoLoad=false
+        PerformanceMode=false
+        UIScaleValue=1.1
+        Scale.Scale=UIScaleValue
+        CurrentConfig="Default"
+
+        local character=G.LP and G.LP.Character
+        local root=character and character:FindFirstChild("HumanoidRootPart")
+        if root then
+            root.AssemblyLinearVelocity=Vector3.zero
+            root.AssemblyAngularVelocity=Vector3.zero
+            root.Velocity=Vector3.zero
+            root.RotVelocity=Vector3.zero
+            root.CFrame=CFrame.new(-432.1439208984375,38.9649658203125,-284.1016540527344)
+        end
+
+        if ConfigNameBox then
+            ConfigNameBox.Text="Name..."
+        end
+
+        SearchBox.Text=""
+        UpdateTogglePanel()
+        UpdateWindowLayout()
+    end
+
+    ResetButton.MouseButton1Click:Connect(ResetAll)
+
     --// PLUGIN SECTION
 ConfigPage:addLabel(
     "Plugins",
@@ -3110,6 +3393,41 @@ local function LoadPlugin(path)
 
     return true
 end
+
+--// UI SETTINGS
+ConfigPage:addLabel(
+    "Interface",
+    "Scale and performance controls"
+)
+
+ConfigPage:addSlider(
+    "UI Scale",
+    80,
+    130,
+    function(v)
+        UIScaleValue=v/100
+        Scale.Scale=UIScaleValue
+    end,
+    110
+)
+
+ConfigPage:addToggle(
+    "Performance Mode",
+    false,
+    function(v)
+        PerformanceMode=v==true
+
+        for _,page in ipairs(Folder:GetChildren()) do
+            if page:IsA("ScrollingFrame") then
+                page.ScrollBarThickness=PerformanceMode and 2 or 4
+            end
+        end
+
+        if PerformanceMode then
+            UpdateWindowLayout()
+        end
+    end
+)
 
 ConfigPage:addButton(
     "Load Plugin",
