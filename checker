@@ -1,3 +1,4 @@
+
 local HttpService = game:GetService("HttpService")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
@@ -29,20 +30,14 @@ local SupportedGames = {
 local CurrentGame = SupportedGames[PlaceId]
 
 if not CurrentGame then
-    warn("==========================================")
-    warn("[TRACKER] UNSUPPORTED GAME")
-    warn("[TRACKER] PlaceId:", tostring(PlaceId))
-    warn("[TRACKER] No currency checker will run.")
-    warn("==========================================")
+    warn("[TRACKER] UNSUPPORTED GAME:", tostring(PlaceId))
     return
 end
 
 local GameName = CurrentGame.Name
-print("==========================================")
+
 print("[GAME] Matched:", GameName)
 print("[GAME] PlaceId:", PlaceId)
-print("[GAME] Strict PlaceId routing enabled.")
-print("==========================================")
 
 Lighting.GlobalShadows = false
 Lighting.FogEnd = 9e9
@@ -73,6 +68,7 @@ for _, obj in ipairs(Workspace:GetDescendants()) do
         obj.Enabled = false
     end
 end
+
 print("[FPS] Boost applied.")
 
 local function GetHttpRequestFunc()
@@ -85,7 +81,7 @@ end
 
 local function FormatNumberWithCommas(amount)
     local formatted = tostring(math.floor(tonumber(amount) or 0))
-    while true do  
+    while true do
         local k
         formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", "%1,%2")
         if k == 0 then break end
@@ -98,14 +94,13 @@ local function ParseCurrencyString(str)
     local cleanStr = string.gsub(tostring(str), "[$,%s]", "")
     local num = tonumber(string.match(cleanStr, "^%d+%.?%d*")) or 0
     local suffix = string.match(cleanStr, "%a+$")
-    
+
     if suffix then
         suffix = string.lower(suffix)
         if suffix == "k" then num = num * 1e3
         elseif suffix == "m" then num = num * 1e6
         elseif suffix == "b" then num = num * 1e9
-        elseif suffix == "t" then num = num * 1e12
-        end
+        elseif suffix == "t" then num = num * 1e12 end
     end
     return num
 end
@@ -132,9 +127,6 @@ local function LoadJSON(filename)
     return success and result or nil
 end
 
--- Finds the Bronx bank amount. Tries exact names, then any value with "bank" in its name,
--- then attributes. Result is cached; if nothing is found it prints what exists so the
--- right name can be added.
 local BankCache = nil
 local BankDumped = false
 
@@ -153,14 +145,16 @@ local function FindBankAmount(Stored)
         local v = ReadNumeric(BankCache)
         if v then return v end
     end
+
     BankCache = nil
 
     local roots = {}
-    for _, r in ipairs({ Stored, LocalPlayer, LocalPlayer:FindFirstChild("leaderstats"), LocalPlayer:FindFirstChild("DataFolder") }) do
+    for _, r in ipairs({Stored, LocalPlayer, LocalPlayer:FindFirstChild("leaderstats"), LocalPlayer:FindFirstChild("DataFolder")}) do
         if r then table.insert(roots, r) end
     end
 
-    local exact = { "Bank", "BankMoney", "BankCash", "BankBalance", "Savings", "BankAmount" }
+    local exact = {"Bank", "BankMoney", "BankCash", "BankBalance", "Savings", "BankAmount"}
+
     for _, root in ipairs(roots) do
         for _, name in ipairs(exact) do
             local c = root:FindFirstChild(name, true)
@@ -191,16 +185,17 @@ local function FindBankAmount(Stored)
     if not BankDumped then
         BankDumped = true
         warn("[BANK] Not found. Values under stored / DataFolder:")
-        for _, root in ipairs({ Stored, LocalPlayer:FindFirstChild("DataFolder") }) do
+        for _, root in ipairs({Stored, LocalPlayer:FindFirstChild("DataFolder")}) do
             if root then
                 for _, d in ipairs(root:GetDescendants()) do
                     if d:IsA("ValueBase") then
-                        warn("   ", d:GetFullName(), "=", tostring(d.Value))
+                        warn(d:GetFullName(), "=", tostring(d.Value))
                     end
                 end
             end
         end
     end
+
     return nil
 end
 
@@ -220,16 +215,15 @@ local GameScrapers = {
 
         local moneyText, buxText
 
-        -- Original path
         local Topbar = PlayerGui:FindFirstChild("TopbarGui")
         local Currencies = Topbar and Topbar:FindFirstChild("Currencies", true)
+
         if Currencies then
             moneyText = LabelText(Currencies:FindFirstChild("Money"))
             local bux = Currencies:FindFirstChild("Blockbux")
             if bux then buxText = LabelText(bux:FindFirstChild("ValueLabel") or bux) end
         end
 
-        -- Fallback: any label named/parented Money/Cash with a number in it
         if not moneyText or not string.match(moneyText, "%d") then
             moneyText = nil
             for _, d in ipairs(PlayerGui:GetDescendants()) do
@@ -244,7 +238,6 @@ local GameScrapers = {
             end
         end
 
-        -- Fallback: leaderstats
         if not moneyText then
             local ls = LocalPlayer:FindFirstChild("leaderstats")
             local stat = ls and (ls:FindFirstChild("Money") or ls:FindFirstChild("Cash"))
@@ -256,12 +249,7 @@ local GameScrapers = {
         if not moneyText then
             if not getgenv().__BLOX_DUMPED then
                 getgenv().__BLOX_DUMPED = true
-                warn("[BLOXBURG] Money label not found. Labels starting with $ or digits:")
-                for _, d in ipairs(PlayerGui:GetDescendants()) do
-                    if d:IsA("TextLabel") and string.match(d.Text, "^%s*%$?%d") then
-                        warn("   ", d:GetFullName(), "=", d.Text)
-                    end
-                end
+                warn("[BLOXBURG] Money label not found.")
             end
             return nil, nil, nil, nil, false
         end
@@ -269,12 +257,13 @@ local GameScrapers = {
         local rawBux = buxText and ParseCurrencyString(buxText) or nil
         return tostring(moneyText), ParseCurrencyString(moneyText), buxText and tostring(buxText) or nil, rawBux, true
     end,
-    
+
     ["Blade Ball"] = function()
         local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
         if not PlayerGui then return nil, nil, nil, nil, false end
-        
+
         local HUD = PlayerGui:FindFirstChild("HUD") or PlayerGui:FindFirstChild("ScreenGui")
+
         if HUD then
             local MoneyLabel = HUD:FindFirstChild("LeftFrame") and HUD.LeftFrame:FindFirstChild("Top") and HUD.LeftFrame.Top:FindFirstChild("MoneyFrame") and HUD.LeftFrame.Top.MoneyFrame:FindFirstChild("MoneyLabel")
             if MoneyLabel and MoneyLabel.Text ~= "" then
@@ -282,7 +271,7 @@ local GameScrapers = {
                 return strMoney, ParseCurrencyString(strMoney), nil, nil, true
             end
         end
-        
+
         for _, guiObj in ipairs(PlayerGui:GetDescendants()) do
             if guiObj:IsA("TextLabel") and (guiObj.Name == "MoneyLabel" or guiObj.Name == "CoinsLabel" or guiObj.Name == "Tokens") then
                 if guiObj.Text and guiObj.Text ~= "" then
@@ -291,7 +280,7 @@ local GameScrapers = {
                 end
             end
         end
-        
+
         local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
         if leaderstats then
             local stat = leaderstats:FindFirstChild("Coins") or leaderstats:FindFirstChild("Tokens") or leaderstats:FindFirstChild("Gems")
@@ -300,38 +289,38 @@ local GameScrapers = {
                 return FormatNumberWithCommas(rawVal), rawVal, nil, nil, true
             end
         end
-        
+
         return nil, nil, nil, nil, false
     end,
-    
+
     ["Jailbreak"] = function()
         local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
         if not PlayerGui then return nil, nil, nil, nil, false end
-        
+
         local AppUI = PlayerGui:FindFirstChild("AppUI", true)
         if not AppUI then return nil, nil, nil, nil, false end
-        
+
         local Label = AppUI:FindFirstChild("Buttons") and AppUI.Buttons:FindFirstChild("Cash") and AppUI.Buttons.Cash:FindFirstChild("Content") and AppUI.Buttons.Cash.Content:FindFirstChild("AmountWrap") and AppUI.Buttons.Cash.Content.AmountWrap:FindFirstChild("Label")
         if not Label then return nil, nil, nil, nil, false end
-        
+
         local strMoney = tostring(Label.Text)
         return strMoney, ParseCurrencyString(strMoney), nil, nil, true
     end,
-    
+
     ["BlockSpin"] = function()
         local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
         if not PlayerGui then return nil, nil, nil, nil, false end
-        
+
         local TopRightHud = PlayerGui:FindFirstChild("TopRightHud", true)
         if not TopRightHud then return nil, nil, nil, nil, false end
-        
+
         local MoneyTextLabel = TopRightHud:FindFirstChild("Holder") and TopRightHud.Holder:FindFirstChild("Frame") and TopRightHud.Holder.Frame:FindFirstChild("MoneyTextLabel")
         if not MoneyTextLabel then return nil, nil, nil, nil, false end
-        
+
         local strMoney = tostring(MoneyTextLabel.Text)
         return strMoney, ParseCurrencyString(strMoney), nil, nil, true
     end,
-    
+
     ["Da Hood"] = function()
         local success, rawMoney = pcall(function()
             local DataFolder = LocalPlayer:WaitForChild("DataFolder", 10)
@@ -350,16 +339,17 @@ local GameScrapers = {
         return FormatNumberWithCommas(rawMoney), rawMoney, nil, nil, true
     end,
 
-
     ["The Bronx 3"] = function()
         local Stored = LocalPlayer:FindFirstChild("stored")
         if not Stored then return nil, nil, nil, nil, false end
 
         local CashValue = Stored:FindFirstChild("Money")
         local IllegalValue = Stored:FindFirstChild("FilthyStack")
+
         if not CashValue or not (CashValue:IsA("IntValue") or CashValue:IsA("NumberValue")) then
             return nil, nil, nil, nil, false
         end
+
         if not IllegalValue or not (IllegalValue:IsA("IntValue") or IllegalValue:IsA("NumberValue")) then
             return nil, nil, nil, nil, false
         end
@@ -368,6 +358,7 @@ local GameScrapers = {
         if cash == nil or illegal == nil then return nil, nil, nil, nil, false end
 
         local bank = FindBankAmount(Stored)
+
         return FormatNumberWithCommas(cash), cash, FormatNumberWithCommas(illegal), illegal, true,
             bank and FormatNumberWithCommas(bank) or nil, bank
     end
@@ -378,6 +369,7 @@ if not ScrapeCurrency then
     warn("[TRACKER] No checker exists for:", GameName)
     return
 end
+
 print("[CHECKER] Loaded:", GameName)
 
 local function GetCurrentBalanceSafe()
@@ -390,15 +382,13 @@ local function GetCurrentBalanceSafe()
     return result[2], tonumber(result[3]), result[4], result[5], true, result[7], tonumber(result[8])
 end
 
--- ===================== NOTIFICATIONS (minimal) =====================
-
-local COLOR_INFO = 3092790   -- neutral dark
-local COLOR_WARN = 16705372  -- soft yellow
-local COLOR_BAD  = 15548997  -- red
+local COLOR_INFO = 3092790
+local COLOR_WARN = 16705372
+local COLOR_BAD = 15548997
 
 local SecondaryLabels = {
     ["Bloxburg"] = "Blockbux",
-    ["The Bronx 3"] = "Illegal",
+    ["The Bronx 3"] = "Illegal"
 }
 
 local function FormatDuration(seconds)
@@ -413,56 +403,96 @@ end
 
 local function DispatchWebhook(title, description, color, fields)
     local webhookUrl = getgenv().INTERGALACTIC_DISCORD_TRANSMISSION_ENDPOINT
-    if not webhookUrl or webhookUrl == "" then
-        warn("[WEBHOOK] URL not configured.")
+
+    if not webhookUrl or webhookUrl == "" or webhookUrl == "YOUR_NEW_WEBHOOK_URL" then
+        warn("[WEBHOOK] Set your new Discord webhook URL first.")
         return false
     end
 
     local requestFunc = GetHttpRequestFunc()
     if not requestFunc then
-        warn("[WEBHOOK] HTTP request unsupported by your executor.")
+        warn("[WEBHOOK] HTTP request unsupported by executor.")
         return false
     end
 
     local embed = {
         title = title,
         color = color or COLOR_INFO,
-        footer = { text = LocalPlayer.Name .. "  ·  " .. GameName },
+        footer = {text = LocalPlayer.Name .. "  ·  " .. GameName},
         timestamp = DateTime.now():ToIsoDate()
     }
+
     if description and description ~= "" then embed.description = description end
     if fields and #fields > 0 then embed.fields = fields end
 
-    local success = pcall(function()
+    local ok, response = pcall(function()
         return requestFunc({
             Url = webhookUrl,
             Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
-            Body = HttpService:JSONEncode({ username = "Tracker", embeds = { embed } })
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode({
+                username = "Tracker",
+                embeds = {embed}
+            })
         })
     end)
 
-    if not success then
-        warn("[WEBHOOK] Failed to send payload.")
+    if not ok then
+        warn("[WEBHOOK] Request error:", tostring(response))
         return false
     end
+
+    if type(response) ~= "table" then
+        warn("[WEBHOOK] Invalid HTTP response:", tostring(response))
+        return false
+    end
+
+    local status = tonumber(response.StatusCode or response.Status)
+
+    if status then
+        print("[WEBHOOK] HTTP Status:", status)
+
+        if status < 200 or status >= 300 then
+            warn("[WEBHOOK] Discord rejected request:", tostring(response.Body))
+            return false
+        end
+    elseif response.Success == false then
+        warn("[WEBHOOK] Request unsuccessful:", tostring(response.Body))
+        return false
+    else
+        warn("[WEBHOOK] No HTTP status returned; response:", tostring(response.Body))
+        return false
+    end
+
+    print("[WEBHOOK] Transmission accepted.")
     return true
 end
 
 local function BuildBalanceFields(strBal, strSec, strBank, delta)
     local cashText = tostring(strBal)
+
     if delta and delta ~= 0 then
         cashText = cashText .. string.format(" (%s%s)", delta > 0 and "+" or "-", FormatNumberWithCommas(math.abs(delta)))
     end
 
-    local fields = { { name = "Cash", value = cashText, inline = true } }
+    local fields = {{name = "Cash", value = cashText, inline = true}}
 
     if strSec ~= nil then
-        table.insert(fields, { name = SecondaryLabels[GameName] or "Secondary", value = tostring(strSec), inline = true })
+        table.insert(fields, {
+            name = SecondaryLabels[GameName] or "Secondary",
+            value = tostring(strSec),
+            inline = true
+        })
     end
+
     if GameName == "The Bronx 3" then
-        table.insert(fields, { name = "Bank", value = strBank and tostring(strBank) or "not found", inline = true })
+        table.insert(fields, {
+            name = "Bank",
+            value = strBank and tostring(strBank) or "not found",
+            inline = true
+        })
     end
+
     return fields
 end
 
@@ -472,15 +502,13 @@ end
 
 local function BroadcastStagnantAlert(strBal, seconds)
     return DispatchWebhook("Balance unchanged", "No change for " .. FormatDuration(seconds), COLOR_WARN, {
-        { name = "Cash", value = tostring(strBal), inline = true }
+        {name = "Cash", value = tostring(strBal), inline = true}
     })
 end
 
 local function BroadcastHeartbeatLost(secondsAgo)
     return DispatchWebhook("Tracker offline", "No heartbeat for " .. FormatDuration(secondsAgo), COLOR_BAD)
 end
-
--- ===================== STATE / FILES =====================
 
 local lastBalance = nil
 local lastSignature = nil
@@ -489,7 +517,6 @@ local lastStagnantNotificationTime = 0
 local lastHeartbeatNotificationTime = 0
 local hasStagnated = false
 local hasLostHeartbeat = false
-
 local latest = {}
 
 local function UpdateHeartbeatFile()
@@ -508,7 +535,6 @@ local function UpdateHeartbeatFile()
     })
 end
 
--- Heartbeat is its own loop: it proves the script is alive, independent of the check interval
 task.spawn(function()
     while true do
         UpdateHeartbeatFile()
@@ -532,18 +558,15 @@ local function UpdateStatusFile()
     })
 end
 
--- ===================== TRACKER LOOP =====================
-
 local function MakeSignature(raw, sec, bank)
     return tostring(raw or 0) .. "|" .. tostring(sec or 0) .. "|" .. tostring(bank or 0)
 end
 
 task.spawn(function()
-    print("==========================================")
     print("[TRACKER] STARTED | Game:", GameName, "| PlaceId:", PlaceId)
-    print("==========================================")
 
     local strBal, rawBal, strSec, rawSec, success, strBank, rawBank = GetCurrentBalanceSafe()
+
     if not success then
         warn("[TRACKER] Currency UI/data was not found. Waiting for it...")
     else
@@ -568,6 +591,7 @@ task.spawn(function()
                 lastBalanceChangeTime = os.time()
             elseif signature ~= lastSignature then
                 local delta = curRaw - (lastBalance or curRaw)
+
                 print("[TRACKER] Cash:", FormatNumberWithCommas(lastBalance), "->", FormatNumberWithCommas(curRaw))
 
                 lastSignature = signature
@@ -580,7 +604,14 @@ task.spawn(function()
                 end
             end
 
-            latest = { strBal = curStr, rawBal = curRaw, strSec = curStrSec, rawSec = curRawSec, rawBank = curRawBank }
+            latest = {
+                strBal = curStr,
+                rawBal = curRaw,
+                strSec = curStrSec,
+                rawSec = curRawSec,
+                rawBank = curRawBank
+            }
+
             UpdateStatusFile()
             task.wait(delayTime)
         else
@@ -591,18 +622,19 @@ task.spawn(function()
     end
 end)
 
--- ===================== WATCHDOG =====================
-
 task.spawn(function()
     print("[WATCHDOG] STARTED")
+
     while true do
         task.wait(5)
 
         if lastBalance ~= nil then
             local sinceChange = os.time() - lastBalanceChangeTime
+
             if sinceChange >= tonumber(getgenv().STAGNANT_TREASURY_EMERGENCY_THRESHOLD) then
                 if os.time() - lastStagnantNotificationTime >= tonumber(getgenv().TREASURY_CRISIS_BROADCAST_COOLDOWN) then
                     local curStr, curRaw, _, _, ok = GetCurrentBalanceSafe()
+
                     if ok and curRaw ~= nil then
                         if BroadcastStagnantAlert(curStr, sinceChange) then
                             lastStagnantNotificationTime = os.time()
@@ -615,10 +647,13 @@ task.spawn(function()
 
         if CanSaveFiles() then
             local hb = LoadJSON(HEARTBEAT_FILE)
+
             if hb and hb.timestamp then
                 local lastHb = tonumber(hb.timestamp)
+
                 if lastHb then
                     local sinceHb = os.time() - lastHb
+
                     if sinceHb >= tonumber(getgenv().APOCALYPTIC_PULSE_FATAL_TIMEOUT) then
                         if os.time() - lastHeartbeatNotificationTime >= tonumber(getgenv().SYSTEM_FLATLINE_BROADCAST_COOLDOWN) then
                             if BroadcastHeartbeatLost(sinceHb) then
@@ -638,6 +673,15 @@ task.spawn(function()
     end
 end)
 
+task.delay(2, function()
+    print("[WEBHOOK] Testing Discord connection...")
+    DispatchWebhook(
+        "Webhook Connection Test",
+        "Currency tracker successfully connected to Discord.",
+        COLOR_INFO
+    )
+end)
+
 print("==========================================")
-print(" CURRENCY TRACKER ONLINE | " .. GameName)
+print("CURRENCY TRACKER ONLINE | " .. GameName)
 print("==========================================")
