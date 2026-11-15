@@ -1,4 +1,3 @@
-
 local HttpService = game:GetService("HttpService")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
@@ -24,7 +23,9 @@ local SupportedGames = {
     [606849621] = { Name = "Jailbreak" },
     [104715542330900] = { Name = "BlockSpin" },
     [2788229376] = { Name = "Da Hood" },
-    [128899661081075] = { Name = "The Bronx 3" }
+    [128899661081075] = { Name = "The Bronx 3" },
+    [891852901] = { Name = "Greenville" },
+    [137228775845999] = { Name = "Ghost Driver" }
 }
 
 local CurrentGame = SupportedGames[PlaceId]
@@ -361,6 +362,39 @@ local GameScrapers = {
 
         return FormatNumberWithCommas(cash), cash, FormatNumberWithCommas(illegal), illegal, true,
             bank and FormatNumberWithCommas(bank) or nil, bank
+    end,
+
+    ["Greenville"] = function()
+        local success, cashLabel = pcall(function()
+            return LocalPlayer.PlayerGui.UI.Uni.Hud.Money.Label
+        end)
+
+        if not success or not cashLabel then
+            return nil, nil, nil, nil, false
+        end
+
+        local strMoney = tostring(cashLabel.Text)
+        local rawMoney = ParseCurrencyString(strMoney)
+        return strMoney, rawMoney, nil, nil, true
+    end,
+
+    ["Ghost Driver"] = function()
+        local success, cashVal = pcall(function()
+            local pg = LocalPlayer:WaitForChild("PlayerGui", 5)
+            local hud = pg and pg:FindFirstChild("InGameHUD")
+            local newHud = hud and hud:FindFirstChild("NewHUD")
+            local moneyHud = newHud and newHud:FindFirstChild("MoneyHUD2")
+            local money = moneyHud and moneyHud:FindFirstChild("MoneyHUD")
+            return money and money.Text or nil
+        end)
+
+        if not success or not cashVal then
+            return nil, nil, nil, nil, false
+        end
+
+        local strMoney = tostring(cashVal)
+        local rawMoney = ParseCurrencyString(strMoney)
+        return strMoney, rawMoney, nil, nil, true
     end
 }
 
