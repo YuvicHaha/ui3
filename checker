@@ -18,14 +18,15 @@ local HEARTBEAT_FILE = "currency_tracker_heartbeat_" .. tostring(LocalPlayer.Use
 local STATUS_FILE = "currency_tracker_status_" .. tostring(LocalPlayer.UserId) .. ".json"
 
 local SupportedGames = {
-    [185655149] = { Name = "Bloxburg" },
-    [16281300371] = { Name = "Blade Ball" },
-    [606849621] = { Name = "Jailbreak" },
-    [104715542330900] = { Name = "BlockSpin" },
-    [2788229376] = { Name = "Da Hood" },
-    [128899661081075] = { Name = "The Bronx 3" },
-    [891852901] = { Name = "Greenville" },
-    [137228775845999] = { Name = "Ghost Driver" }
+    [185655149]        = { Name = "Bloxburg" },
+    [16281300371]      = { Name = "Blade Ball" },
+    [606849621]        = { Name = "Jailbreak" },
+    [104715542330900]  = { Name = "BlockSpin" },
+    [2788229376]       = { Name = "Da Hood" },
+    [128899661081075]  = { Name = "The Bronx 3" },
+    [891852901]        = { Name = "Greenville" },
+    [137228775845999]  = { Name = "Ghost Driver" },
+    [7711635737]       = { Name = "Emergency Hamburg" },
 }
 
 local CurrentGame = SupportedGames[PlaceId]
@@ -395,7 +396,24 @@ local GameScrapers = {
         local strMoney = tostring(cashVal)
         local rawMoney = ParseCurrencyString(strMoney)
         return strMoney, rawMoney, nil, nil, true
-    end
+    end,
+
+    ["Emergency Hamburg"] = function()
+        local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
+        if not PlayerGui then return nil, nil, nil, nil, false end
+
+        local moneyIcon = PlayerGui:FindFirstChild("moneyIcon", true)
+        local node3 = moneyIcon and moneyIcon:FindFirstChild("3")
+        local node1 = node3 and node3:FindFirstChild("1")
+        local node2 = node1 and node1:FindFirstChild("2")
+
+        if node2 and node2:IsA("TextLabel") and node2.Text ~= "" then
+            local strMoney = tostring(node2.Text)
+            return strMoney, ParseCurrencyString(strMoney), nil, nil, true
+        end
+
+        return nil, nil, nil, nil, false
+    end,
 }
 
 local ScrapeCurrency = GameScrapers[GameName]
